@@ -32,6 +32,7 @@ namespace EcomValidator
         // ===== Web API state =====
         private string _lastWebJson = "";
         private string? _serverAccessToken;
+        private bool _isInitialized = false;
 
         // ===== App settings (encrypted at rest) =====
         private sealed class AppSettings
@@ -64,6 +65,10 @@ namespace EcomValidator
         public MainWindow()
         {
             InitializeComponent();
+
+            // Explicitly enforce initial disabled state (also set in XAML)
+            GetServerTokenBtn.IsEnabled = false;
+            CopyBearerTokenBtn.IsEnabled = false;
 
             // Bind grids
             WebEntitlementsGrid.ItemsSource = _webRows;
@@ -203,9 +208,11 @@ namespace EcomValidator
                 ClientIdBox.Text = "";
                 ClientSecretBox.Password = "";
 
-                if (CopyBearerTokenBtn != null) CopyBearerTokenBtn.IsEnabled = false;
-
+                // Reset state & buttons
+                _isInitialized = false;
                 _serverAccessToken = null;
+                GetServerTokenBtn.IsEnabled = false;
+                CopyBearerTokenBtn.IsEnabled = false;
 
                 _webRows.Clear();
                 _summaryRows.Clear();
@@ -234,15 +241,30 @@ namespace EcomValidator
                     encryptionKey32: "12345678901234567890123456789012"
                 );
 
+                _isInitialized = true;
+                GetServerTokenBtn.IsEnabled = true; // now allowed to fetch a token
+
                 if (RememberCredsChk.IsChecked == true) SaveSettingsEncryptedFromUI();
+                Log("✅ EOS SDK initialized.");
             }
-            catch (Exception ex) { Log("💥 Exception during EOS init: " + ex.Message); }
+            catch (Exception ex)
+            {
+                _isInitialized = false;
+                GetServerTokenBtn.IsEnabled = false;
+                Log("💥 Exception during EOS init: " + ex.Message);
+            }
         }
 
         private async void GetServerTokenBtn_Click(object sender, RoutedEventArgs e)
         {
             try
             {
+                if (!_isInitialized)
+                {
+                    Log("Initialize EOS first.");
+                    return;
+                }
+
                 var clientId = ClientIdBox.Text?.Trim();
                 var clientSecret = ClientSecretBox.Password?.Trim();
                 var deploymentId = DeploymentIdBox.Text?.Trim();
@@ -258,7 +280,7 @@ namespace EcomValidator
                 var token = await _eos.GetServerAccessTokenAsync(clientId!, clientSecret!, deploymentId!);
 
                 _serverAccessToken = token;
-                if (CopyBearerTokenBtn != null) CopyBearerTokenBtn.IsEnabled = true;
+                CopyBearerTokenBtn.IsEnabled = true;
                 Log("✅ Server access token acquired (client credentials).");
 
                 if (RememberCredsChk.IsChecked == true) SaveSettingsEncryptedFromUI();
