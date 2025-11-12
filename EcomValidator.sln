@@ -1,0 +1,41 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.13.35931.197 d17.13
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EcomValidator", "EcomValidator\EcomValidator.csproj", "{05A32BED-51EC-4DA0-94C8-77A1F98EE46D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Epic.OnlineServices", "..\Epic.OnlineServices\Epic.OnlineServices\Epic.OnlineServices.csproj", "{00C2D710-53FA-1E67-2CEF-93826E1EE778}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Debug|x64 = Debug|x64
+		Release|Any CPU = Release|Any CPU
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{05A32BED-51EC-4DA0-94C8-77A1F98EE46D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{05A32BED-51EC-4DA0-94C8-77A1F98EE46D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{05A32BED-51EC-4DA0-94C8-77A1F98EE46D}.Debug|x64.ActiveCfg = Debug|x64
+		{05A32BED-51EC-4DA0-94C8-77A1F98EE46D}.Debug|x64.Build.0 = Debug|x64
+		{05A32BED-51EC-4DA0-94C8-77A1F98EE46D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{05A32BED-51EC-4DA0-94C8-77A1F98EE46D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{05A32BED-51EC-4DA0-94C8-77A1F98EE46D}.Release|x64.ActiveCfg = Release|x64
+		{05A32BED-51EC-4DA0-94C8-77A1F98EE46D}.Release|x64.Build.0 = Release|x64
+		{00C2D710-53FA-1E67-2CEF-93826E1EE778}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{00C2D710-53FA-1E67-2CEF-93826E1EE778}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{00C2D710-53FA-1E67-2CEF-93826E1EE778}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{00C2D710-53FA-1E67-2CEF-93826E1EE778}.Debug|x64.Build.0 = Debug|Any CPU
+		{00C2D710-53FA-1E67-2CEF-93826E1EE778}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{00C2D710-53FA-1E67-2CEF-93826E1EE778}.Release|Any CPU.Build.0 = Release|Any CPU
+		{00C2D710-53FA-1E67-2CEF-93826E1EE778}.Release|x64.ActiveCfg = Release|Any CPU
+		{00C2D710-53FA-1E67-2CEF-93826E1EE778}.Release|x64.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {BC4150ED-40E4-4544-92CA-D92BC5221ADF}
+	EndGlobalSection
+EndGlobal
