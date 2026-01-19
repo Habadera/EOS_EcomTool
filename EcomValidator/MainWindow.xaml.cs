@@ -22,17 +22,35 @@ namespace EcomValidator
 {
     public partial class MainWindow : Window
     {
-        // ===== Service: EOS SDK init + token flow =====
         private readonly EosInitialize _eos;
 
-        // ===== UI collections =====
         private readonly ObservableCollection<object> _webRows = new();
         private readonly ObservableCollection<object> _summaryRows = new();
 
-        // ===== Web API state =====
+        private readonly ObservableCollection<object> _orderHeaderRows = new();
+        private readonly ObservableCollection<object> _orderLineOfferRows = new();
+
+        private string _lastOrderJson = "";
+
         private string _lastWebJson = "";
         private string? _serverAccessToken;
         private bool _isInitialized = false;
+
+        // ===== Order Info environment =====
+        private const string OrderBaseUrl_GameDev = "https://ecommerceintegration-public-service-gamedev.ol.epicgames.net";
+        private const string OrderBaseUrl_Prod = "https://ecommerceintegration-public-service-ecomprod02.ol.epicgames.com";
+
+        private string GetSelectedOrderBaseUrl()
+        {
+            var selected = (OrderEnvCombo?.SelectedItem as ComboBoxItem)?.Content?.ToString();
+
+            return selected switch
+            {
+                "Prod" => OrderBaseUrl_Prod,
+                "Custom" => (OrderCustomBaseUrlBox.Text ?? "").Trim().TrimEnd('/'),
+                _ => OrderBaseUrl_GameDev
+            };
+        }
 
         // ===== App settings (encrypted at rest) =====
         private sealed class AppSettings
@@ -42,6 +60,7 @@ namespace EcomValidator
             public string? DeploymentId { get; set; }
             public string? ClientId { get; set; }
             public string? ClientSecret { get; set; }
+            public bool Remember { get; set; }
         }
 
         private static string SettingsDir =>
@@ -66,7 +85,10 @@ namespace EcomValidator
         {
             InitializeComponent();
 
-            // Explicitly enforce initial disabled state (also set in XAML)
+            // Order Info defaults
+            OrderEnvCombo.SelectedIndex = 0; // GameDEV
+
+            // Explicit initial disabled state (also set in XAML)
             GetServerTokenBtn.IsEnabled = false;
             CopyBearerTokenBtn.IsEnabled = false;
 
@@ -74,16 +96,22 @@ namespace EcomValidator
             WebEntitlementsGrid.ItemsSource = _webRows;
             SummaryGrid.ItemsSource = _summaryRows;
 
+            // Bind Order Info grids
+            OrderHeaderGrid.ItemsSource = _orderHeaderRows;
+            OrderLineOffersGrid.ItemsSource = _orderLineOfferRows;
+
             // Load env defaults if present
             ProductIdBox.Text = Environment.GetEnvironmentVariable("EOS_PRODUCT_ID") ?? "";
             SandboxIdBox.Text = Environment.GetEnvironmentVariable("EOS_SANDBOX_ID") ?? "";
             DeploymentIdBox.Text = Environment.GetEnvironmentVariable("EOS_DEPLOYMENT_ID") ?? "";
             ClientIdBox.Text = Environment.GetEnvironmentVariable("EOS_CLIENT_ID") ?? "";
 
+            // Checkbox unchecked by default; only load if saved file opted-in
+            RememberCredsChk.IsChecked = false;
             LoadSettingsEncrypted();
 
-            // Service with UI logger
-            _eos = new EosInitialize(Log);
+            // ✅ FIX: pass a logger delegate
+            _eos = new EosInitialize(msg => Log(msg));
 
             // Apply dark title bar once HWND exists
             this.SourceInitialized += (_, __) => ApplyDarkTitleBar();
@@ -109,6 +137,25 @@ namespace EcomValidator
             _ = DwmSetWindowAttribute(hwnd, DWMWA_CAPTION_COLOR, ref caption, sizeof(int));
             _ = DwmSetWindowAttribute(hwnd, DWMWA_TEXT_COLOR, ref text, sizeof(int));
         }
+
+        // === Menu Handlers ===
+        private void Menu_Exit_Click(object sender, RoutedEventArgs e)
+        {
+            Log("Application exiting by user request.");
+            Close(); // triggers your existing Closed event (which disposes EOS etc.)
+        }
+
+        private void Menu_About_Click(object sender, RoutedEventArgs e)
+        {
+            string version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "1.0.0";
+            string message = $"Ecom Validator\nVersion {version}\n\n" +
+                             "Developed for internal Epic Games SDK testing.\n" +
+                             "© 2025 YourName or Company\n\n" +
+                             "This tool retrieves and validates entitlements using EOS Web APIs.";
+
+            MessageBox.Show(message, "About Ecom Validator", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
 
         // ================= Helpers =================
         private void Log(string msg) => LogText.Text += $"[{DateTime.Now:T}] {msg}\n";
@@ -136,23 +183,29 @@ namespace EcomValidator
         {
             try
             {
-                if (File.Exists(SettingsPath))
+                if (!File.Exists(SettingsPath)) return;
+
+                var b64 = File.ReadAllText(SettingsPath);
+                var json = DecryptFromBase64(b64);
+                if (string.IsNullOrWhiteSpace(json)) return;
+
+                var s = JsonSerializer.Deserialize<AppSettings>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                if (s == null) return;
+
+                if (s.Remember)
                 {
-                    var b64 = File.ReadAllText(SettingsPath);
-                    var json = DecryptFromBase64(b64);
-                    if (!string.IsNullOrWhiteSpace(json))
-                    {
-                        var s = JsonSerializer.Deserialize<AppSettings>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-                        if (s != null)
-                        {
-                            if (!string.IsNullOrWhiteSpace(s.ProductId)) ProductIdBox.Text = s.ProductId!;
-                            if (!string.IsNullOrWhiteSpace(s.SandboxId)) SandboxIdBox.Text = s.SandboxId!;
-                            if (!string.IsNullOrWhiteSpace(s.DeploymentId)) DeploymentIdBox.Text = s.DeploymentId!;
-                            if (!string.IsNullOrWhiteSpace(s.ClientId)) ClientIdBox.Text = s.ClientId!;
-                            if (!string.IsNullOrWhiteSpace(s.ClientSecret)) ClientSecretBox.Password = s.ClientSecret!;
-                            Log("Loaded saved credentials (encrypted).");
-                        }
-                    }
+                    ProductIdBox.Text = s.ProductId ?? "";
+                    SandboxIdBox.Text = s.SandboxId ?? "";
+                    DeploymentIdBox.Text = s.DeploymentId ?? "";
+                    ClientIdBox.Text = s.ClientId ?? "";
+                    ClientSecretBox.Password = s.ClientSecret ?? "";
+                    RememberCredsChk.IsChecked = true;
+                    Log("Loaded saved credentials (encrypted).");
+                }
+                else
+                {
+                    RememberCredsChk.IsChecked = false;
+                    Log("Saved credentials present but 'Remember' is off; not loading.");
                 }
             }
             catch (Exception ex) { Log("Settings load error: " + ex.Message); }
@@ -162,6 +215,13 @@ namespace EcomValidator
         {
             try
             {
+                if (RememberCredsChk.IsChecked != true)
+                {
+                    if (File.Exists(SettingsPath)) File.Delete(SettingsPath);
+                    Log("Not remembering credentials; secure storage removed.");
+                    return;
+                }
+
                 Directory.CreateDirectory(SettingsDir);
                 var s = new AppSettings
                 {
@@ -169,7 +229,8 @@ namespace EcomValidator
                     SandboxId = SandboxIdBox.Text?.Trim(),
                     DeploymentId = DeploymentIdBox.Text?.Trim(),
                     ClientId = ClientIdBox.Text?.Trim(),
-                    ClientSecret = ClientSecretBox.Password?.Trim()
+                    ClientSecret = ClientSecretBox.Password?.Trim(),
+                    Remember = true
                 };
                 var json = JsonSerializer.Serialize(s, new JsonSerializerOptions { WriteIndented = false });
                 var b64 = EncryptToBase64(json);
@@ -182,7 +243,11 @@ namespace EcomValidator
         private void SaveCredsBtn_Click(object sender, RoutedEventArgs e)
         {
             if (RememberCredsChk.IsChecked == true) SaveSettingsEncryptedFromUI();
-            else Log("Tick 'Remember credentials' to enable saving.");
+            else
+            {
+                if (File.Exists(SettingsPath)) { try { File.Delete(SettingsPath); } catch { } }
+                Log("Tick 'Remember credentials' to enable saving.");
+            }
         }
 
         private void ClearCredentialsBtn_Click(object sender, RoutedEventArgs e)
@@ -208,7 +273,8 @@ namespace EcomValidator
                 ClientIdBox.Text = "";
                 ClientSecretBox.Password = "";
 
-                // Reset state & buttons
+                RememberCredsChk.IsChecked = false;
+
                 _isInitialized = false;
                 _serverAccessToken = null;
                 GetServerTokenBtn.IsEnabled = false;
@@ -217,6 +283,13 @@ namespace EcomValidator
                 _webRows.Clear();
                 _summaryRows.Clear();
 
+                _orderHeaderRows.Clear();
+                _orderLineOfferRows.Clear();
+                _lastOrderJson = "";
+
+
+                TryDeleteSdkCache();
+
                 Log("🧹 Credentials cleared and secure storage wiped.");
             }
             catch (Exception ex)
@@ -224,6 +297,15 @@ namespace EcomValidator
                 Log("Clear credentials error: " + ex.Message);
             }
         }
+
+        private static string SdkCacheDir => Path.Combine(Environment.CurrentDirectory, "Cache");
+        private void TryDeleteSdkCache()
+        {
+            try { if (Directory.Exists(SdkCacheDir)) Directory.Delete(SdkCacheDir, true); }
+            catch (Exception ex) { Log("Cache clear error: " + ex.Message); }
+        }
+
+        // ===== EOS init / token flow =====
 
         private void InitBtn_Click(object sender, RoutedEventArgs e)
         {
@@ -237,12 +319,12 @@ namespace EcomValidator
                     clientSecret: ClientSecretBox.Password,
                     isServer: false,
                     flags: 0,
-                    cacheDirectory: Path.Combine(Environment.CurrentDirectory, "Cache"),
+                    cacheDirectory: SdkCacheDir,
                     encryptionKey32: "12345678901234567890123456789012"
                 );
 
                 _isInitialized = true;
-                GetServerTokenBtn.IsEnabled = true; // now allowed to fetch a token
+                GetServerTokenBtn.IsEnabled = true;
 
                 if (RememberCredsChk.IsChecked == true) SaveSettingsEncryptedFromUI();
                 Log("✅ EOS SDK initialized.");
@@ -301,6 +383,7 @@ namespace EcomValidator
             }
         }
 
+        // ===== Partner view =====
         private async void WebGetEntitlementsBtn_Click(object sender, RoutedEventArgs e)
         {
             _webRows.Clear();
@@ -344,6 +427,8 @@ namespace EcomValidator
             if (!string.IsNullOrWhiteSpace(_lastWebJson)) { Clipboard.SetText(_lastWebJson); Log("Web API JSON copied to clipboard."); }
             else Log("No JSON data to copy yet.");
         }
+
+        // ===== Summary tab =====
 
         private async void SummaryFetchBtn_Click(object sender, RoutedEventArgs e)
         {
@@ -431,6 +516,159 @@ namespace EcomValidator
             Log("Summary JSON copied to clipboard.");
         }
 
+        // ===== Order Info tab =====
+
+        private async void OrderFetchBtn_Click(object sender, RoutedEventArgs e)
+        {
+            _orderHeaderRows.Clear();
+            _orderLineOfferRows.Clear();
+
+            var identityId = OrderIdentityIdBox.Text?.Trim();
+            var orderId = OrderIdBox.Text?.Trim();
+            var token = _serverAccessToken?.Trim();
+
+            if (string.IsNullOrWhiteSpace(identityId) || string.IsNullOrWhiteSpace(orderId))
+            {
+                Log("Provide Identity ID and Order ID.");
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(token))
+            {
+                Log("Get an access token first (Credentials tab -> Get Access Token).");
+                return;
+            }
+
+            try
+            {
+                var baseUrl = GetSelectedOrderBaseUrl();
+                if (string.IsNullOrWhiteSpace(baseUrl) || !Uri.TryCreate(baseUrl, UriKind.Absolute, out _))
+                {
+                    Log("Invalid base URL. Pick GameDEV/Prod or enter a valid Custom Base URL.");
+                    return;
+                }
+
+                var order = await FetchOrderInfoAsync(baseUrl, identityId!, orderId!, token!);
+
+                _orderHeaderRows.Add(new
+                {
+                    order.OrderId,
+                    order.InvoiceId,
+                    order.ParentOrderId,
+                    order.OrderType,
+                    order.OrderStatus,
+                    order.Currency,
+                    order.Symbol,
+                    order.TotalPrice,
+                    order.TotalDiscounted,
+                    order.TotalTax,
+                    order.CreationDate,
+                    order.LastModifiedDate,
+                    order.CompletedAt
+                });
+
+                if (order.LineOffers != null)
+                {
+                    foreach (var line in order.LineOffers)
+                    {
+                        _orderLineOfferRows.Add(new
+                        {
+                            line.OfferId,
+                            line.Title,
+                            line.Quantity,
+                            line.TotalPrice,
+                            line.UnitPrice,
+                            line.DiscountedPrice,
+                            line.Namespace,
+                            line.NamespaceDisplayName,
+                            line.SellerId,
+                            line.SellerName
+                        });
+                    }
+                }
+
+                _lastOrderJson = JsonSerializer.Serialize(order, new JsonSerializerOptions { WriteIndented = true });
+                Log($"✅ Order fetched. Line offers: {order.LineOffers?.Count ?? 0}");
+            }
+            catch (Exception ex)
+            {
+                Log("💥 Order fetch error: " + ex.Message);
+            }
+        }
+
+        private void CopyOrderJsonBtn_Click(object sender, RoutedEventArgs e)
+        {
+            if (!string.IsNullOrWhiteSpace(_lastOrderJson))
+            {
+                Clipboard.SetText(_lastOrderJson);
+                Log("Order JSON copied to clipboard.");
+            }
+            else
+            {
+                Log("No Order JSON to copy yet.");
+            }
+        }
+
+        private async Task<OrderInfoResponse> FetchOrderInfoAsync(string baseUrl, string identityId, string orderId, string bearerToken)
+
+        {
+            using var http = new HttpClient();
+            http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
+
+            // GameDEV public service host (as per spec)
+            var url = $"{baseUrl.TrimEnd('/')}/ecommerceintegration/api/eos/v3/identities/{identityId}/orders/{orderId}";
+
+            var resp = await http.GetAsync(url);
+            var body = await resp.Content.ReadAsStringAsync();
+
+            if (!resp.IsSuccessStatusCode)
+                throw new InvalidOperationException($"Order Info API failed: {resp.StatusCode} {body}");
+
+            var order = JsonSerializer.Deserialize<OrderInfoResponse>(body, new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            });
+
+            if (order == null)
+                throw new InvalidOperationException("Order Info API returned empty response.");
+
+            return order;
+        }
+
+        private sealed class OrderInfoResponse
+        {
+            public string? OrderId { get; set; }
+            public string? InvoiceId { get; set; }
+            public string? ParentOrderId { get; set; }
+            public string? OrderType { get; set; }
+            public string? OrderStatus { get; set; }
+            public string? Currency { get; set; }
+            public string? Symbol { get; set; }
+            public int? TotalPrice { get; set; }
+            public int? TotalDiscounted { get; set; }
+            public int? TotalTax { get; set; }
+            public DateTime? CreationDate { get; set; }
+            public DateTime? LastModifiedDate { get; set; }
+            public DateTime? CompletedAt { get; set; }
+            public List<OrderLineOffer>? LineOffers { get; set; }
+        }
+
+        private sealed class OrderLineOffer
+        {
+            public string? OfferId { get; set; }
+            public string? Title { get; set; }
+            public int? Quantity { get; set; }
+            public int? TotalPrice { get; set; }
+            public int? UnitPrice { get; set; }
+            public int? DiscountedPrice { get; set; }
+            public string? Namespace { get; set; }
+            public string? NamespaceDisplayName { get; set; }
+            public string? SellerId { get; set; }
+            public string? SellerName { get; set; }
+        }
+
+
+        // ===== Offer map CSV loader =====
         private void LoadOfferMapBtn_Click(object sender, RoutedEventArgs e)
         {
             try
@@ -454,7 +692,7 @@ namespace EcomValidator
                         if (parts.Length < 2) continue;
 
                         var id = parts[0].Trim();
-                        var name = string.Join(",", parts.Skip(1)).Trim();
+                        var name = string.Join(",", parts.Skip(1)).Trim(); // keep commas in name
                         if (!string.IsNullOrWhiteSpace(id))
                         {
                             _offerNameMap[id] = name;
@@ -467,6 +705,7 @@ namespace EcomValidator
             catch (Exception ex) { Log("Offer map load error: " + ex.Message); }
         }
 
+        // ===== Offer name resolver =====
         private string ResolveOfferName(string? catalogItemId)
         {
             if (string.IsNullOrWhiteSpace(catalogItemId)) return "";
@@ -475,6 +714,7 @@ namespace EcomValidator
             return "";
         }
 
+        // ===== HTTP helpers & models =====
         private async Task<List<WebEntitlement>> FetchEntitlementsAsync(string identityId, string bearerToken, string sandboxId)
         {
             using var http = new HttpClient();
@@ -568,6 +808,24 @@ namespace EcomValidator
 
             throw new InvalidOperationException("Unrecognized Offers API response shape.");
         }
+
+        private void OrderEnvCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            var selected = (OrderEnvCombo.SelectedItem as ComboBoxItem)?.Content?.ToString();
+            var isCustom = string.Equals(selected, "Custom", StringComparison.OrdinalIgnoreCase);
+
+            OrderCustomBaseUrlBox.Visibility = isCustom ? Visibility.Visible : Visibility.Collapsed;
+            OrderUseDefaultCustomBtn.Visibility = isCustom ? Visibility.Visible : Visibility.Collapsed;
+
+            if (!isCustom)
+                OrderCustomBaseUrlBox.Text = "";
+        }
+
+        private void OrderUseDefaultCustomBtn_Click(object sender, RoutedEventArgs e)
+        {
+            OrderCustomBaseUrlBox.Text = OrderBaseUrl_GameDev;
+        }
+
 
         private sealed class WebEntitlement
         {
