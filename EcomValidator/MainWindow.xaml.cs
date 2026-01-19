@@ -149,9 +149,9 @@ namespace EcomValidator
         {
             string version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "1.0.0";
             string message = $"Ecom Validator\nVersion {version}\n\n" +
-                             "Developed for internal Epic Games SDK testing.\n" +
-                             "© 2025 YourName or Company\n\n" +
-                             "This tool retrieves and validates entitlements using EOS Web APIs.";
+                             "© 2026 Epic Games\n\n" +
+                             "For support, contact richard.hopkins@epicgames.com\n" + 
+                             "This tool retrieves and validates entitlements and orders using EOS Web APIs.";
 
             MessageBox.Show(message, "About Ecom Validator", MessageBoxButton.OK, MessageBoxImage.Information);
         }

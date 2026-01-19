@@ -684,8 +684,8 @@
                                 <ComboBox x:Name="OrderEnvCombo"
                   Grid.Column="1"
                   SelectionChanged="OrderEnvCombo_SelectionChanged">
-                                    <ComboBoxItem Content="GameDEV"/>
-                                    <ComboBoxItem Content="Prod"/>
+                                    <ComboBoxItem Content="Prod" />
+                                    <ComboBoxItem Content="GameDEV (Disabled - Epic Only)"/>
                                     <ComboBoxItem Content="Custom"/>
                                 </ComboBox>
 
