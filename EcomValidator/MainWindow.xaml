@@ -2,31 +2,29 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Ecom Validator"
-        Width="1200" Height="800"
-        MinWidth="1000" MinHeight="700"
+        Width="1450" Height="960"
+        MinWidth="1000" MinHeight="800"
         WindowStartupLocation="CenterScreen"
         Background="{DynamicResource Brush.WindowBackground}"
         Foreground="{DynamicResource Brush.FG}">
 
-    <!-- ========== RESOURCES (dark theme) ========== -->
     <Window.Resources>
-        <!-- Colors -->
         <Color x:Key="Color.Background">#1E1E1E</Color>
-        <Color x:Key="Color.Panel">#232323</Color>
-        <Color x:Key="Color.Border">#313131</Color>
-        <Color x:Key="Color.FG">#F3F3F3</Color>
-        <Color x:Key="Color.FG.Muted">#C9C9C9</Color>
-        <Color x:Key="Color.Input">#2A2A2A</Color>
-        <Color x:Key="Color.Input.Focus">#3A3A3A</Color>
-        <Color x:Key="Color.RowAlt">#242424</Color>
-        <Color x:Key="Color.RowSel">#2B3B55</Color>
-        <Color x:Key="Color.Header">#2B2B2B</Color>
-        <Color x:Key="Color.Button.Normal">#3A3A3A</Color>
+        <Color x:Key="Color.Panel">#252526</Color>
+        <Color x:Key="Color.Border">#3E3E42</Color>
+        <Color x:Key="Color.FG">#F1F1F1</Color>
+        <Color x:Key="Color.FG.Muted">#AAAAAA</Color>
+        <Color x:Key="Color.Input">#333337</Color>
+        <Color x:Key="Color.Input.Focus">#3F3F46</Color>
+        <Color x:Key="Color.RowAlt">#2D2D30</Color>
+        <Color x:Key="Color.RowSel">#094771</Color>
+        <Color x:Key="Color.Header">#2D2D30</Color>
+        <Color x:Key="Color.Button.Normal">#3E3E42</Color>
         <Color x:Key="Color.Button.Hover">#505050</Color>
-        <Color x:Key="Color.Button.Pressed">#2F2F2F</Color>
-        <Color x:Key="Color.Button.Border">#565656</Color>
+        <Color x:Key="Color.Button.Pressed">#007ACC</Color>
+        <Color x:Key="Color.Selection">#007ACC</Color>
+        <Color x:Key="Color.Success">#2E7D32</Color>
 
-        <!-- Brushes -->
         <SolidColorBrush x:Key="Brush.WindowBackground" Color="{StaticResource Color.Background}" />
         <SolidColorBrush x:Key="Brush.Panel" Color="{StaticResource Color.Panel}" />
         <SolidColorBrush x:Key="Brush.Border" Color="{StaticResource Color.Border}" />
@@ -40,9 +38,9 @@
         <SolidColorBrush x:Key="Brush.Button.Normal" Color="{StaticResource Color.Button.Normal}"/>
         <SolidColorBrush x:Key="Brush.Button.Hover"  Color="{StaticResource Color.Button.Hover}"/>
         <SolidColorBrush x:Key="Brush.Button.Pressed" Color="{StaticResource Color.Button.Pressed}"/>
-        <SolidColorBrush x:Key="Brush.Button.Border" Color="{StaticResource Color.Button.Border}"/>
+        <SolidColorBrush x:Key="Brush.Selection" Color="{StaticResource Color.Selection}"/>
+        <SolidColorBrush x:Key="Brush.Success" Color="{StaticResource Color.Success}"/>
 
-        <!-- Base text/containers -->
         <Style TargetType="Label">
             <Setter Property="Foreground" Value="{DynamicResource Brush.FG}" />
             <Setter Property="VerticalAlignment" Value="Center" />
@@ -52,137 +50,44 @@
         </Style>
         <Style TargetType="GroupBox">
             <Setter Property="Foreground" Value="{DynamicResource Brush.FG}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource Brush.Border}" />
         </Style>
 
-        <!-- TextBox / PasswordBox -->
         <Style x:Key="FormTextBox" TargetType="TextBox">
             <Setter Property="Foreground" Value="{DynamicResource Brush.FG}" />
             <Setter Property="Padding" Value="6"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Background" Value="{DynamicResource Brush.Input}"/>
             <Setter Property="BorderBrush" Value="{DynamicResource Brush.Border}"/>
-            <Setter Property="HorizontalAlignment" Value="Stretch"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
-            <Setter Property="MinWidth" Value="260"/>
-            <Setter Property="MaxWidth" Value="420"/>
         </Style>
+
         <Style x:Key="FormPasswordBox" TargetType="PasswordBox">
             <Setter Property="Foreground" Value="{DynamicResource Brush.FG}" />
             <Setter Property="Padding" Value="6"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Background" Value="{DynamicResource Brush.Input}"/>
             <Setter Property="BorderBrush" Value="{DynamicResource Brush.Border}"/>
-            <Setter Property="HorizontalAlignment" Value="Left"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
-            <Setter Property="MinWidth" Value="260"/>
-            <Setter Property="MaxWidth" Value="420"/>
         </Style>
 
-        <!-- DatePicker: outer control (size/alignment) -->
         <Style x:Key="FormDatePicker" TargetType="DatePicker">
             <Setter Property="Foreground" Value="{DynamicResource Brush.FG}" />
-            <Setter Property="HorizontalAlignment" Value="Left"/>
-            <Setter Property="VerticalAlignment" Value="Center"/>
-            <Setter Property="MinWidth" Value="260"/>
-            <Setter Property="MaxWidth" Value="420"/>
-        </Style>
-
-        <!-- Dark DatePicker text area -->
-        <Style TargetType="{x:Type DatePickerTextBox}">
-            <Setter Property="Foreground" Value="{DynamicResource Brush.FG}" />
-            <Setter Property="Background" Value="{DynamicResource Brush.Input}" />
-            <Setter Property="BorderBrush" Value="{DynamicResource Brush.Border}" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="Padding" Value="6" />
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="{x:Type DatePickerTextBox}">
-                        <Border x:Name="Bd"
-                                Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}">
-                            <Grid>
-                                <ScrollViewer x:Name="PART_ContentHost" />
-                                <ContentPresenter x:Name="PART_Watermark"
-                                                  Margin="4,0,0,0"
-                                                  VerticalAlignment="Center"
-                                                  IsHitTestVisible="False" />
-                            </Grid>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Brush.Input.Focus}"/>
-                            </Trigger>
-                            <Trigger Property="IsKeyboardFocused" Value="True">
-                                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource Brush.Button.Border}"/>
-                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Brush.Input.Focus}"/>
-                            </Trigger>
-                            <Trigger Property="IsEnabled" Value="False">
-                                <Setter Property="Opacity" Value="0.6"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <!-- Dark popup Calendar (implicit styles) -->
-        <Style TargetType="{x:Type Calendar}">
-            <Setter Property="Background" Value="{DynamicResource Brush.Panel}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource Brush.Border}"/>
-            <Setter Property="Foreground" Value="{DynamicResource Brush.FG}"/>
-        </Style>
-        <Style TargetType="{x:Type CalendarItem}">
-            <Setter Property="Background" Value="{DynamicResource Brush.Panel}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource Brush.Border}"/>
-            <Setter Property="Foreground" Value="{DynamicResource Brush.FG}"/>
-        </Style>
-        <Style TargetType="{x:Type CalendarDayButton}">
-            <Setter Property="Foreground" Value="{DynamicResource Brush.FG}"/>
-            <Setter Property="Background" Value="{DynamicResource Brush.Panel}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource Brush.Border}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Style.Triggers>
-                <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="{DynamicResource Brush.Button.Hover}"/>
-                </Trigger>
-                <Trigger Property="IsSelected" Value="True">
-                    <Setter Property="Background" Value="{DynamicResource Brush.RowSel}"/>
-                </Trigger>
-                <Trigger Property="IsInactive" Value="True">
-                    <Setter Property="Foreground" Value="{DynamicResource Brush.FG.Muted}"/>
-                </Trigger>
-                <Trigger Property="IsToday" Value="True">
-                    <Setter Property="BorderBrush" Value="{DynamicResource Brush.Button.Border}"/>
-                </Trigger>
-            </Style.Triggers>
-        </Style>
-
-        <!-- CheckBox -->
-        <Style TargetType="CheckBox">
-            <Setter Property="Foreground" Value="{DynamicResource Brush.FG}" />
             <Setter Property="VerticalAlignment" Value="Center"/>
         </Style>
 
-        <!-- Buttons -->
         <Style TargetType="Button">
             <Setter Property="Foreground" Value="{DynamicResource Brush.FG}" />
             <Setter Property="Background" Value="{DynamicResource Brush.Button.Normal}" />
-            <Setter Property="BorderBrush" Value="{DynamicResource Brush.Button.Border}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource Brush.Border}" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="Padding" Value="8,6" />
-            <Setter Property="Margin" Value="6,0,0,0" />
-            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Padding" Value="10,6" />
+            <Setter Property="Margin" Value="4" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="Bd"
-                                Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}">
-                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
-                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
-                                              Margin="{TemplateBinding Padding}" />
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="{TemplateBinding VerticalContentAlignment}" Margin="{TemplateBinding Padding}"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
@@ -200,76 +105,91 @@
             </Setter>
         </Style>
 
-        <!-- Tabs: TabControl + TabItem -->
-        <Style TargetType="TabControl">
-            <Setter Property="Foreground" Value="{DynamicResource Brush.FG}" />
-            <Setter Property="Background" Value="{DynamicResource Brush.Panel}" />
-            <Setter Property="BorderBrush" Value="{DynamicResource Brush.Border}" />
-            <Setter Property="BorderThickness" Value="1" />
+        <Style TargetType="{x:Type ComboBox}">
+            <Setter Property="Background" Value="{DynamicResource Brush.Input}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource Brush.Border}"/>
+            <Setter Property="Foreground" Value="{DynamicResource Brush.FG}"/>
+            <Setter Property="Padding" Value="6,4"/>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="OverridesDefaultStyle" Value="True"/>
             <Setter Property="Template">
                 <Setter.Value>
-                    <ControlTemplate TargetType="TabControl">
-                        <Grid KeyboardNavigation.TabNavigation="Local">
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="*"/>
-                            </Grid.RowDefinitions>
-                            <Border Background="{DynamicResource Brush.Header}"
-                                    BorderBrush="{DynamicResource Brush.Border}"
-                                    BorderThickness="0,0,0,1">
-                                <TabPanel x:Name="HeaderPanel" Background="Transparent" IsItemsHost="True"/>
-                            </Border>
-                            <Border Grid.Row="1"
-                                    Background="{DynamicResource Brush.Panel}"
-                                    BorderBrush="{DynamicResource Brush.Border}"
-                                    BorderThickness="1,0,1,1">
-                                <ContentPresenter x:Name="PART_SelectedContentHost" Margin="0" ContentSource="SelectedContent"/>
-                            </Border>
+                    <ControlTemplate TargetType="{x:Type ComboBox}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="20"/>
+                            </Grid.ColumnDefinitions>
+                            <Border Grid.ColumnSpan="2" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" CornerRadius="2"/>
+                            <TextBlock Grid.Column="0" Margin="8,2,6,2" VerticalAlignment="Center" Text="{TemplateBinding Text}" Foreground="{TemplateBinding Foreground}" TextTrimming="CharacterEllipsis"/>
+                            <ToggleButton Grid.Column="1" Focusable="False" IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}" Background="Transparent" BorderThickness="0">
+                                <Path Data="M 0 0 L 4 4 L 8 0 Z" Stretch="Uniform" Width="8" Height="5" VerticalAlignment="Center" HorizontalAlignment="Center" Fill="{DynamicResource Brush.FG}"/>
+                            </ToggleButton>
+                            <Popup x:Name="Popup" Placement="Bottom" IsOpen="{TemplateBinding IsDropDownOpen}" AllowsTransparency="True" Focusable="False" PopupAnimation="Slide">
+                                <Border Background="{DynamicResource Brush.Panel}" BorderBrush="{DynamicResource Brush.Border}" BorderThickness="1">
+                                    <ScrollViewer>
+                                        <ItemsPresenter/>
+                                    </ScrollViewer>
+                                </Border>
+                            </Popup>
                         </Grid>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
-            <Setter Property="ItemContainerStyle">
+        </Style>
+        <Style TargetType="{x:Type ComboBoxItem}">
+            <Setter Property="Background" Value="{DynamicResource Brush.Panel}"/>
+            <Setter Property="Foreground" Value="{DynamicResource Brush.FG}"/>
+            <Setter Property="Padding" Value="6,4"/>
+            <Style.Triggers>
+                <Trigger Property="IsHighlighted" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource Brush.Selection}"/>
+                </Trigger>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource Brush.Selection}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style TargetType="{x:Type MenuItem}">
+            <Setter Property="Background" Value="{DynamicResource Brush.Panel}"/>
+            <Setter Property="Foreground" Value="{DynamicResource Brush.FG}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource Brush.Border}"/>
+            <Setter Property="Padding" Value="10,6"/>
+            <Setter Property="Template">
                 <Setter.Value>
-                    <Style TargetType="TabItem">
-                        <Setter Property="Foreground" Value="{DynamicResource Brush.FG}"/>
-                        <Setter Property="Padding" Value="12,6"/>
-                        <Setter Property="Margin" Value="0,0,6,0"/>
-                        <Setter Property="Template">
-                            <Setter.Value>
-                                <ControlTemplate TargetType="TabItem">
-                                    <Border x:Name="Bd"
-                                            Background="{DynamicResource Brush.Header}"
-                                            BorderBrush="{DynamicResource Brush.Border}"
-                                            BorderThickness="1,1,1,0"
-                                            CornerRadius="8,8,0,0"
-                                            SnapsToDevicePixels="True">
-                                        <ContentPresenter ContentSource="Header"
-                                                          Margin="{TemplateBinding Padding}"
-                                                          HorizontalAlignment="Center"
-                                                          VerticalAlignment="Center"/>
+                    <ControlTemplate TargetType="{x:Type MenuItem}">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" SnapsToDevicePixels="True">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" SharedSizeGroup="Icon"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto" SharedSizeGroup="Shortcut"/>
+                                    <ColumnDefinition Width="13"/>
+                                </Grid.ColumnDefinitions>
+                                <ContentPresenter x:Name="Icon" Margin="6,0,6,0" VerticalAlignment="Center" ContentSource="Icon"/>
+                                <ContentPresenter x:Name="HeaderHost" Grid.Column="1" ContentSource="Header" Margin="0,0,10,0" RecognizesAccessKey="True" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="InputGestureText" Grid.Column="2" Text="{TemplateBinding InputGestureText}" Margin="5,2,2,2" DockPanel.Dock="Right" />
+                                <Popup x:Name="Popup" Placement="Right" IsOpen="{TemplateBinding IsSubmenuOpen}" AllowsTransparency="True" Focusable="False" PopupAnimation="Fade">
+                                    <Border Background="{DynamicResource Brush.Panel}" BorderBrush="{DynamicResource Brush.Border}" BorderThickness="1" Padding="2">
+                                        <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Cycle"/>
                                     </Border>
-                                    <ControlTemplate.Triggers>
-                                        <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Brush.Button.Hover}"/>
-                                        </Trigger>
-                                        <Trigger Property="IsSelected" Value="True">
-                                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Brush.Panel}"/>
-                                            <Setter Property="Panel.ZIndex" Value="1"/>
-                                        </Trigger>
-                                        <Trigger Property="IsEnabled" Value="False">
-                                            <Setter Property="Opacity" Value="0.6"/>
-                                        </Trigger>
-                                    </ControlTemplate.Triggers>
-                                </ControlTemplate>
-                            </Setter.Value>
-                        </Setter>
-                    </Style>
+                                </Popup>
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsHighlighted" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Brush.Button.Hover}"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Foreground" Value="{DynamicResource Brush.FG.Muted}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
                 </Setter.Value>
             </Setter>
         </Style>
 
-        <!-- DataGrid -->
         <Style TargetType="DataGrid">
             <Setter Property="Foreground" Value="{DynamicResource Brush.FG}" />
             <Setter Property="GridLinesVisibility" Value="None"/>
@@ -281,16 +201,18 @@
             <Setter Property="HeadersVisibility" Value="Column"/>
             <Setter Property="CanUserAddRows" Value="False"/>
             <Setter Property="CanUserDeleteRows" Value="False"/>
-            <Setter Property="AutoGenerateColumns" Value="True"/>
-            <Setter Property="Margin" Value="0,6,0,0"/>
+            <Setter Property="AutoGenerateColumns" Value="False"/>
         </Style>
+
         <Style TargetType="DataGridColumnHeader">
             <Setter Property="Background" Value="{DynamicResource Brush.Header}"/>
             <Setter Property="Foreground" Value="{DynamicResource Brush.FG}"/>
             <Setter Property="BorderBrush" Value="{DynamicResource Brush.Border}"/>
-            <Setter Property="BorderThickness" Value="0,0,0,1"/>
-            <Setter Property="Padding" Value="6,4"/>
+            <Setter Property="BorderThickness" Value="0,0,1,1"/>
+            <Setter Property="Padding" Value="8,6"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
         </Style>
+
         <Style TargetType="DataGridRow">
             <Setter Property="Background" Value="{DynamicResource Brush.Panel}" />
             <Setter Property="BorderBrush" Value="{DynamicResource Brush.Border}" />
@@ -298,89 +220,67 @@
             <Style.Triggers>
                 <Trigger Property="IsSelected" Value="True">
                     <Setter Property="Background" Value="{DynamicResource Brush.RowSel}"/>
+                    <Setter Property="Foreground" Value="White"/>
                 </Trigger>
             </Style.Triggers>
         </Style>
+
         <Style TargetType="DataGridCell">
-            <Setter Property="BorderBrush" Value="{DynamicResource Brush.Border}" />
-            <Setter Property="BorderThickness" Value="0,0,0,1" />
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="6"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="DataGridCell">
+                        <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}">
+                            <ContentPresenter VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
             <Style.Triggers>
                 <Trigger Property="IsSelected" Value="True">
                     <Setter Property="Background" Value="{DynamicResource Brush.RowSel}"/>
+                    <Setter Property="Foreground" Value="White"/>
                 </Trigger>
             </Style.Triggers>
         </Style>
 
-        <!-- Headers -->
-        <Style x:Key="HeaderText" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="18"/>
+        <Style x:Key="DetailLabel" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource Brush.FG.Muted}"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Margin" Value="0,0,5,2"/>
+        </Style>
+        <Style x:Key="DetailValue" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource Brush.FG}"/>
+            <Setter Property="FontSize" Value="12"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Foreground" Value="{DynamicResource Brush.FG}"/>
-            <Setter Property="Margin" Value="0,0,0,6"/>
-        </Style>
-        <!-- Label alignment for forms -->
-        <Style x:Key="FormLabel" TargetType="Label" BasedOn="{StaticResource {x:Type Label}}">
-            <Setter Property="HorizontalAlignment" Value="Right"/>
+            <Setter Property="Margin" Value="0,0,20,10"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
         </Style>
 
-        <!-- ===== DARK MENU DROPDOWNS (explicit, no SystemColors overrides) ===== -->
-        <Style TargetType="{x:Type ContextMenu}">
-            <Setter Property="Background" Value="{DynamicResource Brush.Panel}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource Brush.Border}"/>
-            <Setter Property="Foreground" Value="{DynamicResource Brush.FG}"/>
-        </Style>
-
-        <Style TargetType="{x:Type MenuItem}">
-            <Setter Property="Foreground" Value="{DynamicResource Brush.FG}"/>
-            <Setter Property="Background" Value="{DynamicResource Brush.Panel}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource Brush.Border}"/>
-            <Setter Property="Padding" Value="10,6"/>
-            <Style.Triggers>
-                <Trigger Property="IsHighlighted" Value="True">
-                    <Setter Property="Background" Value="{DynamicResource Brush.Button.Hover}"/>
-                </Trigger>
-                <Trigger Property="IsEnabled" Value="False">
-                    <Setter Property="Foreground" Value="{DynamicResource Brush.FG.Muted}"/>
-                </Trigger>
-            </Style.Triggers>
-        </Style>
-
-        <Style TargetType="{x:Type Separator}">
-            <Setter Property="Margin" Value="4,4,4,4"/>
-            <Setter Property="Background" Value="{DynamicResource Brush.Border}"/>
-        </Style>
     </Window.Resources>
 
-    <!-- ========== MAIN LAYOUT ========== -->
-    <Grid Margin="16">
+    <Grid Margin="15">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
-            <!-- Menu -->
             <RowDefinition Height="Auto"/>
-            <!-- Credentials -->
             <RowDefinition Height="*"/>
-            <!-- Tabs -->
             <RowDefinition Height="Auto"/>
-            <!-- Log -->
         </Grid.RowDefinitions>
 
-        <!-- ===== Menu Bar ===== -->
-        <Menu Grid.Row="0"
-              Background="{DynamicResource Brush.Header}"
-              Foreground="{DynamicResource Brush.FG}"
-              BorderBrush="{DynamicResource Brush.Border}"
-              BorderThickness="0,0,0,1">
-            <MenuItem Header="_File">
-                <MenuItem Header="E_xit" Click="Menu_Exit_Click"/>
-            </MenuItem>
-            <MenuItem Header="_Help">
-                <MenuItem Header="_About..." Click="Menu_About_Click"/>
-            </MenuItem>
-        </Menu>
+        <DockPanel Grid.Row="0" LastChildFill="False" Margin="0,0,0,10">
+            <TextBlock Text="Ecom Validator" FontSize="20" FontWeight="Bold" Foreground="{DynamicResource Brush.FG}"/>
+            <Menu DockPanel.Dock="Right" Background="Transparent" Foreground="{DynamicResource Brush.FG}">
+                <MenuItem Header="Options">
+                    <MenuItem Header="Clear Credentials" Click="ClearCredentialsBtn_Click"/>
+                    <MenuItem Header="Exit" Click="Menu_Exit_Click"/>
+                </MenuItem>
+                <MenuItem Header="About" Click="Menu_About_Click"/>
+            </Menu>
+        </DockPanel>
 
-        <!-- ===== Top: Credentials ===== -->
-        <GroupBox Header="Credentials" Grid.Row="1" Margin="0,8,0,0">
-            <Grid Margin="8">
+        <GroupBox Grid.Row="1" Header="Configuration &amp; Credentials" Padding="10" Margin="0,0,0,10">
+            <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
@@ -388,379 +288,334 @@
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="170"/>
+                    <ColumnDefinition Width="Auto" MinWidth="100"/>
                     <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="170"/>
+                    <ColumnDefinition Width="Auto" MinWidth="100"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
-                <!-- Row 0 -->
-                <Label Grid.Row="0" Grid.Column="0" Style="{StaticResource FormLabel}" Content="Product ID:"/>
-                <TextBox x:Name="ProductIdBox" Grid.Row="0" Grid.Column="1" Style="{StaticResource FormTextBox}" />
-                <Label Grid.Row="0" Grid.Column="2" Style="{StaticResource FormLabel}" Content="Sandbox ID:"/>
-                <TextBox x:Name="SandboxIdBox" Grid.Row="0" Grid.Column="3" Style="{StaticResource FormTextBox}" />
+                <Label Grid.Row="0" Grid.Column="0" Content="Product ID:"/>
+                <TextBox x:Name="ProductIdBox" Grid.Row="0" Grid.Column="1" Style="{StaticResource FormTextBox}"/>
 
-                <!-- Row 1 -->
-                <Label Grid.Row="1" Grid.Column="0" Style="{StaticResource FormLabel}" Content="Deployment ID:"/>
-                <TextBox x:Name="DeploymentIdBox" Grid.Row="1" Grid.Column="1" Style="{StaticResource FormTextBox}" />
-                <Label Grid.Row="1" Grid.Column="2" Style="{StaticResource FormLabel}" Content="Client ID:"/>
-                <TextBox x:Name="ClientIdBox" Grid.Row="1" Grid.Column="3" Style="{StaticResource FormTextBox}" />
+                <Label Grid.Row="0" Grid.Column="2" Content="Sandbox ID:"/>
+                <TextBox x:Name="SandboxIdBox" Grid.Row="0" Grid.Column="3" Style="{StaticResource FormTextBox}"/>
 
-                <!-- Row 2 -->
-                <Label Grid.Row="2" Grid.Column="0" Style="{StaticResource FormLabel}" Content="Client Secret:"/>
-                <PasswordBox x:Name="ClientSecretBox" Grid.Row="2" Grid.Column="1" Style="{StaticResource FormPasswordBox}" />
-                <CheckBox x:Name="RememberCredsChk" Grid.Row="2" Grid.Column="3" Content="Remember credentials on this device" />
+                <Label Grid.Row="1" Grid.Column="0" Content="Deployment ID:"/>
+                <TextBox x:Name="DeploymentIdBox" Grid.Row="1" Grid.Column="1" Style="{StaticResource FormTextBox}"/>
 
-                <!-- Row 3 -->
-                <StackPanel Grid.Row="3" Grid.Column="1" Orientation="Horizontal">
-                    <Button x:Name="SaveCredsBtn" Content="Save Credentials" Click="SaveCredsBtn_Click"/>
-                    <Button x:Name="ClearCredentialsBtn" Content="Clear Credentials" Click="ClearCredentialsBtn_Click"/>
-                </StackPanel>
+                <Label Grid.Row="1" Grid.Column="2" Content="Client ID:"/>
+                <TextBox x:Name="ClientIdBox" Grid.Row="1" Grid.Column="3" Style="{StaticResource FormTextBox}"/>
 
-                <StackPanel Grid.Row="3" Grid.Column="3" Orientation="Horizontal" HorizontalAlignment="Right">
-                    <Button x:Name="InitBtn" Content="Init EOS" Click="InitBtn_Click"/>
-                    <!-- Start disabled; enable after successful Init -->
-                    <Button x:Name="GetServerTokenBtn" Content="Get Access Token" IsEnabled="False" Click="GetServerTokenBtn_Click"/>
-                    <Button x:Name="CopyBearerTokenBtn" Content="Copy Bearer Token" IsEnabled="False" Click="CopyBearerTokenBtn_Click"/>
+                <Label Grid.Row="2" Grid.Column="0" Content="Client Secret:"/>
+                <PasswordBox x:Name="ClientSecretBox" Grid.Row="2" Grid.Column="1" Style="{StaticResource FormPasswordBox}"/>
+
+                <CheckBox x:Name="RememberCredsChk" Grid.Row="2" Grid.Column="3" Content="Remember on this device" Foreground="{DynamicResource Brush.FG}" VerticalAlignment="Center" Margin="5,0"/>
+
+                <StackPanel Grid.Row="0" Grid.RowSpan="3" Grid.Column="4" VerticalAlignment="Center" Margin="10,0,0,0">
+                    <Button x:Name="InitBtn" Content="1. Init EOS" Click="InitBtn_Click" HorizontalContentAlignment="Left" Width="140" Padding="10,6"/>
+                    <Button x:Name="GetServerTokenBtn" Content="2. Get Token" Click="GetServerTokenBtn_Click" IsEnabled="False" HorizontalContentAlignment="Left" Width="140" Padding="10,6"/>
                 </StackPanel>
             </Grid>
         </GroupBox>
 
-        <!-- ===== Middle: Tabs ===== -->
-        <TabControl Grid.Row="2">
-            <!-- Partner View -->
-            <TabItem Header="Partner View">
-                <Border Background="{DynamicResource Brush.Panel}" Padding="12">
-                    <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="*"/>
-                        </Grid.RowDefinitions>
+        <TabControl Grid.Row="2" Background="Transparent" BorderThickness="0">
+            <TabControl.Resources>
+                <Style TargetType="TabItem">
+                    <Setter Property="Foreground" Value="{DynamicResource Brush.FG}"/>
+                    <Setter Property="Background" Value="{DynamicResource Brush.Panel}"/>
+                    <Setter Property="FontSize" Value="14"/>
+                    <Setter Property="Padding" Value="15,8"/>
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="TabItem">
+                                <Border Name="Border" Background="{TemplateBinding Background}" BorderBrush="{DynamicResource Brush.Border}" BorderThickness="1,1,1,0" Margin="0,0,4,0" CornerRadius="4,4,0,0">
+                                    <ContentPresenter x:Name="ContentSite" VerticalAlignment="Center" HorizontalAlignment="Center" ContentSource="Header" Margin="10,2"/>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsSelected" Value="True">
+                                        <Setter TargetName="Border" Property="Background" Value="{DynamicResource Brush.Button.Pressed}"/>
+                                        <Setter Property="Foreground" Value="White"/>
+                                    </Trigger>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="Border" Property="Background" Value="{DynamicResource Brush.Button.Hover}"/>
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </Style>
+            </TabControl.Resources>
 
-                        <!-- Row 0 -->
-                        <Grid Grid.Row="0">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="170"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-
-                            <Label Grid.Column="0" Style="{StaticResource FormLabel}" Content="Identity ID:"/>
-                            <TextBox x:Name="WebIdentityIdBox" Grid.Column="1" Style="{StaticResource FormTextBox}" />
-
-                            <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right">
-                                <Button x:Name="WebGetEntitlementsBtn" Content="Fetch Entitlements" Click="WebGetEntitlementsBtn_Click"/>
-                                <Button x:Name="CopyWebJsonBtn" Content="Copy JSON" Click="CopyWebJsonBtn_Click"/>
-                            </StackPanel>
-                        </Grid>
-
-                        <!-- Row 1 -->
-                        <DataGrid x:Name="WebEntitlementsGrid" Grid.Row="1" />
-                    </Grid>
-                </Border>
-            </TabItem>
-
-            <!-- Summary -->
-            <TabItem Header="Summary">
-                <Border Background="{DynamicResource Brush.Panel}" Padding="12">
-                    <Grid Grid.IsSharedSizeScope="True">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <!-- identity + actions -->
-                            <RowDefinition Height="Auto"/>
-                            <!-- date range -->
-                            <RowDefinition Height="Auto"/>
-                            <!-- include + offer map -->
-                            <RowDefinition Height="Auto"/>
-                            <!-- search -->
-                            <RowDefinition Height="*"/>
-                            <!-- grid -->
-                        </Grid.RowDefinitions>
-
-                        <!-- Row 0 -->
-                        <Grid Grid.Row="0" Margin="0,0,0,4">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="170" SharedSizeGroup="Label1"/>
-                                <ColumnDefinition Width="*"   SharedSizeGroup="Input1"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-
-                            <Label Grid.Column="0" Style="{StaticResource FormLabel}" Content="Identity ID:"/>
-                            <TextBox x:Name="SumIdentityIdBox" Grid.Column="1" Style="{StaticResource FormTextBox}" />
-                            <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right">
-                                <Button x:Name="SummaryFetchBtn" Content="Fetch Summary" Click="SummaryFetchBtn_Click"/>
-                                <Button x:Name="CopySummaryJsonBtn" Content="Copy Summary JSON" Click="CopySummaryJsonBtn_Click"/>
-                            </StackPanel>
-                        </Grid>
-
-                        <!-- Row 1 -->
-                        <Grid Grid.Row="1" Margin="0,0,0,4">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="170" SharedSizeGroup="Label1"/>
-                                <ColumnDefinition Width="*"   SharedSizeGroup="Input1"/>
-                                <ColumnDefinition Width="170" SharedSizeGroup="Label2"/>
-                                <ColumnDefinition Width="*"   SharedSizeGroup="Input2"/>
-                            </Grid.ColumnDefinitions>
-
-                            <Label Grid.Column="0" Style="{StaticResource FormLabel}" Content="From:"/>
-                            <DatePicker x:Name="FromDatePicker" Grid.Column="1" Style="{StaticResource FormDatePicker}" />
-                            <Label Grid.Column="2" Style="{StaticResource FormLabel}" Content="To:"/>
-                            <DatePicker x:Name="ToDatePicker" Grid.Column="3" Style="{StaticResource FormDatePicker}" />
-                        </Grid>
-
-                        <!-- Row 2 -->
-                        <Grid Grid.Row="2" Margin="0,0,0,4">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="170" SharedSizeGroup="Label1"/>
-                                <ColumnDefinition Width="*"   SharedSizeGroup="Input1"/>
-                                <ColumnDefinition Width="170" SharedSizeGroup="Label2"/>
-                                <ColumnDefinition Width="*"   SharedSizeGroup="Input2"/>
-                            </Grid.ColumnDefinitions>
-
-                            <Label Grid.Column="0" Style="{StaticResource FormLabel}" Content="Include:"/>
-                            <StackPanel Grid.Column="1" Orientation="Horizontal">
-                                <CheckBox x:Name="ShowUnredeemedChk" Content="Unredeemed" Margin="0,0,8,0" IsChecked="True"/>
-                                <CheckBox x:Name="ShowRedeemedChk" Content="Redeemed" IsChecked="True"/>
-                            </StackPanel>
-
-                            <Label Grid.Column="2" Style="{StaticResource FormLabel}" Content="Offer names:"/>
-                            <StackPanel Grid.Column="3" Orientation="Horizontal">
-                                <!-- Default ON -->
-                                <CheckBox x:Name="AutoResolveNamesChk" Content="Auto-resolve via API" Margin="0,0,8,0" IsChecked="True"/>
-                                <Button x:Name="LoadOfferMapBtn" Content="Load CSV Map" Click="LoadOfferMapBtn_Click"/>
-                            </StackPanel>
-                        </Grid>
-
-                        <!-- Row 3 -->
-                        <Grid Grid.Row="3" Margin="0,0,0,8">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="170" SharedSizeGroup="Label1"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-
-                            <Label Grid.Column="0" Style="{StaticResource FormLabel}" Content="Search:"/>
-                            <TextBox x:Name="SearchBox" Grid.Column="1" Style="{StaticResource FormTextBox}" />
-                        </Grid>
-
-                        <!-- Row 4 -->
-                        <DataGrid x:Name="SummaryGrid" Grid.Row="4" />
-                    </Grid>
-                </Border>
-            </TabItem>
-
-            <!-- Order Info -->
             <TabItem Header="Order Info">
-                <Border Background="{DynamicResource Brush.Panel}" Padding="12">
-                    <Grid Grid.IsSharedSizeScope="True">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="*"/>
-                        </Grid.RowDefinitions>
+                <Grid Margin="0,10,0,0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
 
-                        <!-- Row 0: Inputs + actions -->
-                        <Grid Grid.Row="0" Margin="0,0,0,8">
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                            </Grid.RowDefinitions>
+                    <Grid Grid.Row="0" Margin="0,0,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
 
-                            <!-- Local styles to keep ComboBox dark-themed (since app has no global ComboBox style) -->
-                            <Grid.Resources>
+                        <StackPanel Grid.Column="0" Margin="0,0,10,0">
+                            <Label Content="Environment:"/>
+                            <ComboBox x:Name="OrderEnvCombo" Width="150" Padding="6" SelectionChanged="OrderEnvCombo_SelectionChanged">
+                                <ComboBoxItem Content="Prod" IsSelected="True"/>
+                                <ComboBoxItem Content="Custom"/>
+                            </ComboBox>
+                            <TextBox x:Name="OrderCustomBaseUrlBox" Visibility="Collapsed" Margin="0,5,0,0" Width="150" ToolTip="Custom Base URL"/>
+                        </StackPanel>
 
-                                <!-- Dark themed ComboBox (WPF-correct: no ContentPresenter.Foreground) -->
-                                <Style TargetType="{x:Type ComboBox}">
-                                    <Setter Property="Background" Value="{DynamicResource Brush.Input}"/>
-                                    <Setter Property="BorderBrush" Value="{DynamicResource Brush.Border}"/>
-                                    <Setter Property="Foreground" Value="{DynamicResource Brush.FG}"/>
-                                    <Setter Property="Padding" Value="6,4"/>
-                                    <Setter Property="SnapsToDevicePixels" Value="True"/>
-                                    <Setter Property="OverridesDefaultStyle" Value="True"/>
+                        <DockPanel Grid.Column="1">
+                            <Label Content="Order IDs (One per line, comma or space):" DockPanel.Dock="Top"/>
+                            <TextBox x:Name="OrderIdBox" 
+                                     AcceptsReturn="True" 
+                                     TextWrapping="Wrap" 
+                                     VerticalScrollBarVisibility="Auto"
+                                     Style="{StaticResource FormTextBox}"
+                                     Height="60"/>
+                        </DockPanel>
 
-                                    <Setter Property="Template">
-                                        <Setter.Value>
-                                            <ControlTemplate TargetType="{x:Type ComboBox}">
-                                                <Grid>
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="*"/>
-                                                        <ColumnDefinition Width="22"/>
-                                                    </Grid.ColumnDefinitions>
-
-                                                    <!-- Main border -->
-                                                    <Border Grid.ColumnSpan="2"
-                            Background="{TemplateBinding Background}"
-                            BorderBrush="{TemplateBinding BorderBrush}"
-                            BorderThickness="1"
-                            CornerRadius="2"/>
-
-                                                    <!-- Selected text: TextBlock *can* be styled -->
-                                                    <TextBlock Grid.Column="0"
-                               Margin="8,2,6,2"
-                               VerticalAlignment="Center"
-                               Text="{TemplateBinding Text}"
-                               Foreground="{TemplateBinding Foreground}"
-                               TextTrimming="CharacterEllipsis"/>
-
-                                                    <!-- Drop arrow button -->
-                                                    <ToggleButton Grid.Column="1"
-                                  Focusable="False"
-                                  IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"
-                                  Background="Transparent"
-                                  BorderThickness="0">
-                                                        <Path Data="M 0 0 L 4 4 L 8 0 Z"
-                              Stretch="Uniform"
-                              Width="10"
-                              Height="6"
-                              VerticalAlignment="Center"
-                              HorizontalAlignment="Center"
-                              Fill="{DynamicResource Brush.FG}"/>
-                                                    </ToggleButton>
-
-                                                    <!-- Popup dropdown -->
-                                                    <Popup x:Name="Popup"
-                           Placement="Bottom"
-                           IsOpen="{TemplateBinding IsDropDownOpen}"
-                           AllowsTransparency="True"
-                           Focusable="False"
-                           PopupAnimation="Slide">
-                                                        <Border Background="{DynamicResource Brush.Panel}"
-                                BorderBrush="{DynamicResource Brush.Border}"
-                                BorderThickness="1">
-                                                            <ScrollViewer>
-                                                                <ItemsPresenter/>
-                                                            </ScrollViewer>
-                                                        </Border>
-                                                    </Popup>
-                                                </Grid>
-
-                                                <ControlTemplate.Triggers>
-                                                    <!-- Ensure Text is populated from selected item -->
-                                                    <Trigger Property="IsEditable" Value="False">
-                                                        <Setter Property="Text" Value="{Binding SelectedItem.Content, RelativeSource={RelativeSource TemplatedParent}}"/>
-                                                    </Trigger>
-
-                                                    <Trigger Property="IsEnabled" Value="False">
-                                                        <Setter Property="Opacity" Value="0.55"/>
-                                                    </Trigger>
-                                                </ControlTemplate.Triggers>
-                                            </ControlTemplate>
-                                        </Setter.Value>
-                                    </Setter>
-                                </Style>
-
-
-                                <!-- Dark themed ComboBox items -->
-                                <Style TargetType="{x:Type ComboBoxItem}">
-                                    <Setter Property="Background" Value="{DynamicResource Brush.Panel}"/>
-                                    <Setter Property="Foreground" Value="{DynamicResource Brush.FG}"/>
-                                    <Setter Property="Padding" Value="6,4"/>
-                                    <Setter Property="HorizontalContentAlignment" Value="Left"/>
-                                    <Style.Triggers>
-                                        <Trigger Property="IsHighlighted" Value="True">
-                                            <Setter Property="Background" Value="{DynamicResource Brush.Selection}"/>
-                                        </Trigger>
-                                        <Trigger Property="IsSelected" Value="True">
-                                            <Setter Property="Background" Value="{DynamicResource Brush.Selection}"/>
-                                        </Trigger>
-                                    </Style.Triggers>
-                                </Style>
-
-
-                            </Grid.Resources>
-
-
-                            <!-- Row 0: Environment -->
-                            <Grid Grid.Row="0" Margin="0,0,0,6">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="170" SharedSizeGroup="Label1"/>
-                                    <ColumnDefinition Width="220" SharedSizeGroup="Input1"/>
-                                    <ColumnDefinition Width="170" SharedSizeGroup="Label2"/>
-                                    <ColumnDefinition Width="*"   SharedSizeGroup="Input2"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-
-                                <Label Grid.Column="0" Style="{StaticResource FormLabel}" Content="Environment:"/>
-                                <ComboBox x:Name="OrderEnvCombo"
-                  Grid.Column="1"
-                  SelectionChanged="OrderEnvCombo_SelectionChanged">
-                                    <ComboBoxItem Content="Prod" />
-                                    <ComboBoxItem Content="GameDEV (Disabled - Epic Only)"/>
-                                    <ComboBoxItem Content="Custom"/>
-                                </ComboBox>
-
-                                <Label Grid.Column="2" Style="{StaticResource FormLabel}" Content="Custom Base URL:"/>
-                                <TextBox x:Name="OrderCustomBaseUrlBox"
-                 Grid.Column="3"
-                 Style="{StaticResource FormTextBox}"
-                 Visibility="Collapsed"
-                 ToolTip="Example: https://ecommerceintegration-public-service-gamedev.ol.epicgames.net" />
-
-                                <Button x:Name="OrderUseDefaultCustomBtn"
-                Grid.Column="4"
-                Content="Use GameDEV URL"
-                Click="OrderUseDefaultCustomBtn_Click"
-                Visibility="Collapsed"/>
-                            </Grid>
-
-                            <!-- Row 1: Identity + Order + actions -->
-                            <Grid Grid.Row="1">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="170" SharedSizeGroup="Label1"/>
-                                    <ColumnDefinition Width="*"   SharedSizeGroup="Input1"/>
-                                    <ColumnDefinition Width="170" SharedSizeGroup="Label2"/>
-                                    <ColumnDefinition Width="*"   SharedSizeGroup="Input2"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-
-                                <Label Grid.Column="0" Style="{StaticResource FormLabel}" Content="Identity ID:"/>
-                                <TextBox x:Name="OrderIdentityIdBox" Grid.Column="1" Style="{StaticResource FormTextBox}" />
-
-                                <Label Grid.Column="2" Style="{StaticResource FormLabel}" Content="Order ID:"/>
-                                <TextBox x:Name="OrderIdBox" Grid.Column="3" Style="{StaticResource FormTextBox}" />
-
-                                <StackPanel Grid.Column="4" Orientation="Horizontal" HorizontalAlignment="Right">
-                                    <Button x:Name="OrderFetchBtn" Content="Fetch Order" Click="OrderFetchBtn_Click"/>
-                                    <Button x:Name="CopyOrderJsonBtn" Content="Copy Order JSON" Click="CopyOrderJsonBtn_Click"/>
-                                </StackPanel>
-                            </Grid>
-                        </Grid>
-
-
-                        <!-- Row 1: Order header/details -->
-                        <DataGrid x:Name="OrderHeaderGrid" Grid.Row="1" />
-
-                        <!-- Row 2: Line offers -->
-                        <DataGrid x:Name="OrderLineOffersGrid" Grid.Row="2" />
+                        <StackPanel Grid.Column="2" VerticalAlignment="Bottom" Margin="10,0,0,0">
+                            <Button x:Name="OrderFetchBtn" Content="Fetch Orders" Click="OrderFetchBtn_Click" FontWeight="Bold"/>
+                            <Button x:Name="CopyOrderJsonBtn" Content="Copy JSON" Click="CopyOrderJsonBtn_Click"/>
+                        </StackPanel>
                     </Grid>
-                </Border>
+
+                    <DataGrid x:Name="OrderHeaderGrid" 
+                              Grid.Row="1" 
+                              ItemsSource="{Binding}"
+                              RowDetailsVisibilityMode="Collapsed"
+                              SelectionMode="Single"
+                              BorderBrush="{DynamicResource Brush.Border}"
+                              BorderThickness="1">
+
+                        <DataGrid.Columns>
+                            <DataGridTemplateColumn Width="40">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <ToggleButton Click="RowExpander_Click"
+                                                      IsChecked="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=DataGridRow}, Mode=OneWay}"
+                                                      Width="24" Height="24"
+                                                      Background="Transparent" Foreground="{DynamicResource Brush.FG}" BorderThickness="0">
+                                            <ToggleButton.Style>
+                                                <Style TargetType="ToggleButton">
+                                                    <Setter Property="Content" Value="+"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding DetailsVisibility, RelativeSource={RelativeSource AncestorType=DataGridRow}}" Value="Visible">
+                                                            <Setter Property="Content" Value="-"/>
+                                                            <Setter Property="FontWeight" Value="Bold"/>
+                                                            <Setter Property="IsChecked" Value="True"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </ToggleButton.Style>
+                                        </ToggleButton>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+
+                            <DataGridTextColumn Header="Order ID" Binding="{Binding OrderId}" Width="*" MinWidth="180"/>
+                            <DataGridTextColumn Header="Status" Binding="{Binding OrderStatus}" Width="120"/>
+                            <DataGridTextColumn Header="Date" Binding="{Binding CreationDate}" Width="180"/>
+                            <DataGridTextColumn Header="Total" Binding="{Binding TotalPrice}" Width="100"/>
+                            <DataGridTextColumn Header="Currency" Binding="{Binding Currency}" Width="80"/>
+                        </DataGrid.Columns>
+
+                        <DataGrid.RowDetailsTemplate>
+                            <DataTemplate>
+                                <Border Background="#1A1A1A" BorderBrush="{DynamicResource Brush.Border}" BorderThickness="0,1,0,1" Padding="20">
+                                    <StackPanel HorizontalAlignment="Stretch">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+
+                                            <StackPanel Grid.Column="0">
+                                                <TextBlock Text="ORDER DETAILS" FontWeight="Bold" Foreground="#007ACC" Margin="0,0,0,10"/>
+                                                <TextBlock Text="Order ID" Style="{StaticResource DetailLabel}"/>
+                                                <TextBlock Text="{Binding OrderId}" Style="{StaticResource DetailValue}"/>
+                                                <TextBlock Text="Invoice ID" Style="{StaticResource DetailLabel}"/>
+                                                <TextBlock Text="{Binding InvoiceId}" Style="{StaticResource DetailValue}"/>
+                                                <TextBlock Text="Parent Order ID" Style="{StaticResource DetailLabel}"/>
+                                                <TextBlock Text="{Binding ParentOrderId}" Style="{StaticResource DetailValue}"/>
+                                                <TextBlock Text="Order Type" Style="{StaticResource DetailLabel}"/>
+                                                <TextBlock Text="{Binding OrderType}" Style="{StaticResource DetailValue}"/>
+                                            </StackPanel>
+
+                                            <StackPanel Grid.Column="1">
+                                                <TextBlock Text="FINANCIALS" FontWeight="Bold" Foreground="#007ACC" Margin="0,0,0,10"/>
+                                                <TextBlock Text="Total Price" Style="{StaticResource DetailLabel}"/>
+                                                <TextBlock Style="{StaticResource DetailValue}">
+                                                    <TextBlock.Text>
+                                                        <MultiBinding StringFormat="{}{0} {1}">
+                                                            <Binding Path="Symbol"/>
+                                                            <Binding Path="TotalPrice"/>
+                                                        </MultiBinding>
+                                                    </TextBlock.Text>
+                                                </TextBlock>
+                                                <TextBlock Text="Total Tax" Style="{StaticResource DetailLabel}"/>
+                                                <TextBlock Text="{Binding TotalTax}" Style="{StaticResource DetailValue}"/>
+                                                <TextBlock Text="Total Discounted" Style="{StaticResource DetailLabel}"/>
+                                                <TextBlock Text="{Binding TotalDiscounted}" Style="{StaticResource DetailValue}"/>
+                                                <TextBlock Text="Currency" Style="{StaticResource DetailLabel}"/>
+                                                <TextBlock Text="{Binding Currency}" Style="{StaticResource DetailValue}"/>
+                                            </StackPanel>
+
+                                            <StackPanel Grid.Column="2">
+                                                <TextBlock Text="TIMESTAMPS" FontWeight="Bold" Foreground="#007ACC" Margin="0,0,0,10"/>
+                                                <TextBlock Text="Creation Date" Style="{StaticResource DetailLabel}"/>
+                                                <TextBlock Text="{Binding CreationDate}" Style="{StaticResource DetailValue}"/>
+                                                <TextBlock Text="Completed At" Style="{StaticResource DetailLabel}"/>
+                                                <TextBlock Text="{Binding CompletedAt}" Style="{StaticResource DetailValue}"/>
+                                                <TextBlock Text="Last Modified" Style="{StaticResource DetailLabel}"/>
+                                                <TextBlock Text="{Binding LastModifiedDate}" Style="{StaticResource DetailValue}"/>
+                                            </StackPanel>
+
+                                            <StackPanel Grid.Column="3">
+                                                <TextBlock Text="STATUS" FontWeight="Bold" Foreground="#007ACC" Margin="0,0,0,10"/>
+                                                <TextBlock Text="Order Status" Style="{StaticResource DetailLabel}"/>
+                                                <Border Background="#333" CornerRadius="4" Padding="8,4" HorizontalAlignment="Left" Margin="0,0,0,10">
+                                                    <TextBlock Text="{Binding OrderStatus}" FontWeight="Bold" Foreground="White"/>
+                                                </Border>
+                                            </StackPanel>
+                                        </Grid>
+
+                                        <Separator Background="{DynamicResource Brush.Border}" Margin="0,15"/>
+
+                                        <TextBlock Text="LINE OFFERS" FontWeight="Bold" Foreground="#007ACC" Margin="0,0,0,10"/>
+
+                                        <ItemsControl ItemsSource="{Binding LineOffers}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border BorderBrush="#333" BorderThickness="0,0,0,1" Margin="0,0,0,10" Padding="0,0,0,10">
+                                                        <Grid>
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="2*"/>
+                                                                <ColumnDefinition Width="*"/>
+                                                                <ColumnDefinition Width="*"/>
+                                                                <ColumnDefinition Width="1.5*"/>
+                                                                <ColumnDefinition Width="1.5*"/>
+                                                            </Grid.ColumnDefinitions>
+
+                                                            <StackPanel Grid.Column="0" Margin="0,0,10,0">
+                                                                <TextBlock Text="Offer Title" Style="{StaticResource DetailLabel}"/>
+                                                                <TextBlock Text="{Binding Title}" Style="{StaticResource DetailValue}" Foreground="White" TextWrapping="Wrap"/>
+
+                                                                <TextBlock Text="Offer ID" Style="{StaticResource DetailLabel}"/>
+                                                                <TextBlock Text="{Binding OfferId}" Style="{StaticResource DetailValue}" FontFamily="Consolas"/>
+                                                            </StackPanel>
+
+                                                            <StackPanel Grid.Column="1" Margin="0,0,10,0">
+                                                                <TextBlock Text="Quantity" Style="{StaticResource DetailLabel}"/>
+                                                                <TextBlock Text="{Binding Quantity}" Style="{StaticResource DetailValue}"/>
+
+                                                                <TextBlock Text="Unit Price" Style="{StaticResource DetailLabel}"/>
+                                                                <TextBlock Text="{Binding UnitPrice}" Style="{StaticResource DetailValue}"/>
+                                                            </StackPanel>
+
+                                                            <StackPanel Grid.Column="2" Margin="0,0,10,0">
+                                                                <TextBlock Text="Total Price" Style="{StaticResource DetailLabel}"/>
+                                                                <TextBlock Text="{Binding TotalPrice}" Style="{StaticResource DetailValue}"/>
+
+                                                                <TextBlock Text="Discounted Price" Style="{StaticResource DetailLabel}"/>
+                                                                <TextBlock Text="{Binding DiscountedPrice}" Style="{StaticResource DetailValue}"/>
+                                                            </StackPanel>
+
+                                                            <StackPanel Grid.Column="3" Margin="0,0,10,0">
+                                                                <TextBlock Text="Seller Name" Style="{StaticResource DetailLabel}"/>
+                                                                <TextBlock Text="{Binding SellerName}" Style="{StaticResource DetailValue}"/>
+
+                                                                <TextBlock Text="Seller ID" Style="{StaticResource DetailLabel}"/>
+                                                                <TextBlock Text="{Binding SellerId}" Style="{StaticResource DetailValue}" FontFamily="Consolas"/>
+                                                            </StackPanel>
+
+                                                            <StackPanel Grid.Column="4">
+                                                                <TextBlock Text="Namespace" Style="{StaticResource DetailLabel}"/>
+                                                                <TextBlock Text="{Binding Namespace}" Style="{StaticResource DetailValue}" FontFamily="Consolas"/>
+
+                                                                <TextBlock Text="Display Name" Style="{StaticResource DetailLabel}"/>
+                                                                <TextBlock Text="{Binding NamespaceDisplayName}" Style="{StaticResource DetailValue}"/>
+                                                            </StackPanel>
+                                                        </Grid>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </DataGrid.RowDetailsTemplate>
+                    </DataGrid>
+                </Grid>
             </TabItem>
 
+            <TabItem Header="Partner View">
+                <Grid Margin="0,10,0,0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <Grid Grid.Row="0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Label Content="Identity ID:"/>
+                        <TextBox x:Name="WebIdentityIdBox" Grid.Column="1" Style="{StaticResource FormTextBox}"/>
+                        <StackPanel Grid.Column="2" Orientation="Horizontal">
+                            <Button x:Name="WebGetEntitlementsBtn" Content="Fetch" Click="WebGetEntitlementsBtn_Click"/>
+                            <Button x:Name="CopyWebJsonBtn" Content="Copy JSON" Click="CopyWebJsonBtn_Click"/>
+                        </StackPanel>
+                    </Grid>
+                    <DataGrid x:Name="WebEntitlementsGrid" Grid.Row="1" ItemsSource="{Binding}" Margin="0,10,0,0" AutoGenerateColumns="True"/>
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="Summary">
+                <Grid Margin="0,10,0,0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <Grid Grid.Row="0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Label Content="Identity ID:"/>
+                        <TextBox x:Name="SumIdentityIdBox" Grid.Column="1" Style="{StaticResource FormTextBox}"/>
+                        <StackPanel Grid.Column="2" Orientation="Horizontal">
+                            <Button x:Name="SummaryFetchBtn" Content="Fetch Summary" Click="SummaryFetchBtn_Click"/>
+                            <Button x:Name="CopySummaryJsonBtn" Content="Copy JSON" Click="CopySummaryJsonBtn_Click"/>
+                        </StackPanel>
+                    </Grid>
+                    <DataGrid x:Name="SummaryGrid" Grid.Row="1" ItemsSource="{Binding}" Margin="0,10,0,0" AutoGenerateColumns="True"/>
+                </Grid>
+            </TabItem>
         </TabControl>
 
-        <!-- ===== Bottom: Log ===== -->
-        <Border Grid.Row="3" Background="{DynamicResource Brush.Panel}" BorderBrush="{DynamicResource Brush.Border}" BorderThickness="1" Margin="0,8,0,0">
+        <Border Grid.Row="3" Background="#111" BorderBrush="{DynamicResource Brush.Border}" BorderThickness="0,1,0,0" Height="120" Margin="0,10,0,0">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="120"/>
+                    <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
-
-                <DockPanel Grid.Row="0" LastChildFill="False" Margin="10,8,10,4">
-                    <TextBlock Text="Log" Style="{StaticResource HeaderText}" DockPanel.Dock="Left"/>
-                    <Button Content="Clear Log" DockPanel.Dock="Right" Click="ClearLog_Click"/>
+                <DockPanel Grid.Row="0" Margin="5">
+                    <TextBlock Text="Activity Log" FontSize="12" Foreground="#888" DockPanel.Dock="Left"/>
+                    <Button Content="Clear" DockPanel.Dock="Right" Padding="4,2" FontSize="10" Click="ClearLog_Click"/>
                 </DockPanel>
-
                 <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
-                    <TextBox x:Name="LogText"
-                             Background="{DynamicResource Brush.Panel}"
-                             Foreground="{DynamicResource Brush.FG.Muted}"
-                             BorderThickness="0"
-                             IsReadOnly="True"
-                             AcceptsReturn="True"
-                             TextWrapping="Wrap"
-                             FontFamily="Consolas"
-                             Padding="10"/>
+                    <TextBox x:Name="LogText" Background="Transparent" Foreground="#DDD" BorderThickness="0" IsReadOnly="True" TextWrapping="Wrap" FontFamily="Consolas" Padding="5"/>
                 </ScrollViewer>
             </Grid>
         </Border>
