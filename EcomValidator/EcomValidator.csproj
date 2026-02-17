@@ -7,13 +7,20 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
     <Platforms>AnyCPU;x64</Platforms>
+    <ApplicationIcon>AppIcon.ico</ApplicationIcon>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="AssemblyInfo.cs" />
+  </ItemGroup>
 
   <ItemGroup>
     <None Remove="EOSSDK-Win64-Shipping.dll" />
   </ItemGroup>
 
   <ItemGroup>
+    <Resource Include="AppIcon.ico" />
+    <Resource Include="AssemblyInfo.cs" />
     <Content Include="EOSSDK-Win64-Shipping.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
