@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
@@ -13,8 +14,9 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Controls.Primitives; // Required for ToggleButton
-using System.Windows.Media; // Required for Brush
+using System.Windows.Controls.Primitives;
+using System.Windows.Data;
+using System.Windows.Media;
 using System.Windows.Interop;
 using Microsoft.Win32;
 
@@ -24,22 +26,21 @@ namespace EcomValidator
 {
     public partial class MainWindow : Window
     {
-        // ===== VERSION CONTROL =====
-        private const string ToolVersion = "1.1";
+        private const string ToolVersion = "1.6"; // Bumped for Full Restoration
 
         private readonly EosInitialize _eos;
 
         private readonly ObservableCollection<object> _webRows = new();
         private readonly ObservableCollection<object> _summaryRows = new();
-
         private readonly ObservableCollection<OrderInfoResponse> _orderHeaderRows = new();
+
+        private readonly ObservableCollection<CredentialProfile> _profiles = new();
 
         private string _lastOrderJson = "";
         private string _lastWebJson = "";
         private string? _serverAccessToken;
         private bool _isInitialized = false;
 
-        // ===== Order Info environment =====
         private const string OrderBaseUrl_Prod = "https://api.epicgames.dev";
 
         private string GetSelectedOrderBaseUrl()
@@ -53,7 +54,28 @@ namespace EcomValidator
             };
         }
 
-        // ===== App settings =====
+        // ===== Data Models =====
+        public class CredentialProfile : INotifyPropertyChanged
+        {
+            private string _name = "Default Profile";
+            public Guid Id { get; set; } = Guid.NewGuid();
+
+            public string Name
+            {
+                get => _name;
+                set { _name = value; OnPropertyChanged(nameof(Name)); }
+            }
+
+            public string? ProductId { get; set; }
+            public string? SandboxId { get; set; }
+            public string? DeploymentId { get; set; }
+            public string? ClientId { get; set; }
+            public string? ClientSecret { get; set; }
+
+            public event PropertyChangedEventHandler? PropertyChanged;
+            protected void OnPropertyChanged(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+        }
+
         private sealed class AppSettings
         {
             public string? ProductId { get; set; }
@@ -62,22 +84,16 @@ namespace EcomValidator
             public string? ClientId { get; set; }
             public string? ClientSecret { get; set; }
             public bool Remember { get; set; }
+
+            public List<CredentialProfile> Profiles { get; set; } = new();
+            public Guid? SelectedProfileId { get; set; }
         }
 
-        private static string SettingsDir =>
-            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "EcomValidator");
-        private static string SettingsPath => Path.Combine(SettingsDir, "settings.secure");
-        private static readonly byte[] _entropy = Encoding.UTF8.GetBytes("EcomValidator-v1-entropy");
+        private static string SettingsPath => Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "settings.secure");
+        private const string EncryptionKey = "EcomValidator_Portable_Key_2026!";
 
-        // Offer resolvers
         private readonly Dictionary<string, string> _offerNameMap = new(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, string> _offerNameMapFromApi = new(StringComparer.OrdinalIgnoreCase);
-
-        // ===== DWM title-bar =====
-        private const int DWMWA_USE_IMMERSIVE_DARK_MODE_BEFORE_20H1 = 19;
-        private const int DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
-        private const int DWMWA_CAPTION_COLOR = 35;
-        private const int DWMWA_TEXT_COLOR = 36;
 
         [DllImport("dwmapi.dll")]
         private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int attrValue, int attrSize);
@@ -86,28 +102,24 @@ namespace EcomValidator
         {
             InitializeComponent();
 
-            OrderEnvCombo.SelectedIndex = 0; // Default to PROD
+            OrderEnvCombo.SelectedIndex = 0;
 
             WebEntitlementsGrid.ItemsSource = _webRows;
             SummaryGrid.ItemsSource = _summaryRows;
             OrderHeaderGrid.ItemsSource = _orderHeaderRows;
 
-            // Load Env
-            ProductIdBox.Text = Environment.GetEnvironmentVariable("EOS_PRODUCT_ID") ?? "";
-            SandboxIdBox.Text = Environment.GetEnvironmentVariable("EOS_SANDBOX_ID") ?? "";
-            DeploymentIdBox.Text = Environment.GetEnvironmentVariable("EOS_DEPLOYMENT_ID") ?? "";
-            ClientIdBox.Text = Environment.GetEnvironmentVariable("EOS_CLIENT_ID") ?? "";
-
-            RememberCredsChk.IsChecked = false;
-            LoadSettingsEncrypted();
+            ProfileCombo.ItemsSource = _profiles;
 
             _eos = new EosInitialize(msg => Log(msg));
+
+            LogText.TextChanged += (s, e) => LogText.ScrollToEnd();
+
+            LoadSettingsEncrypted();
 
             this.SourceInitialized += (_, __) => ApplyDarkTitleBar();
             this.Closed += (s, e) =>
             {
-                try { _eos.Dispose(); } catch { }
-                if (RememberCredsChk.IsChecked == true) SaveSettingsEncryptedFromUI();
+                SaveSettingsEncryptedFromUI(false);
             };
         }
 
@@ -116,12 +128,11 @@ namespace EcomValidator
             var hwnd = new WindowInteropHelper(this).Handle;
             if (hwnd == IntPtr.Zero) return;
             int enable = 1;
-            DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, ref enable, sizeof(int));
-            DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE_BEFORE_20H1, ref enable, sizeof(int));
+            DwmSetWindowAttribute(hwnd, 20, ref enable, sizeof(int));
             int caption = unchecked((int)0x00252526);
             int text = unchecked((int)0x00F1F1F1);
-            DwmSetWindowAttribute(hwnd, DWMWA_CAPTION_COLOR, ref caption, sizeof(int));
-            DwmSetWindowAttribute(hwnd, DWMWA_TEXT_COLOR, ref text, sizeof(int));
+            DwmSetWindowAttribute(hwnd, 35, ref caption, sizeof(int));
+            DwmSetWindowAttribute(hwnd, 36, ref text, sizeof(int));
         }
 
         // ================= Helpers =================
@@ -130,31 +141,188 @@ namespace EcomValidator
             Dispatcher.Invoke(() =>
             {
                 LogText.AppendText($"[{DateTime.Now:T}] {msg}\n");
-                LogText.ScrollToEnd();
             });
         }
         private void ClearLog_Click(object sender, RoutedEventArgs e) => LogText.Text = "";
-
         private void Menu_Exit_Click(object sender, RoutedEventArgs e) => Close();
-
-        // UPDATED: Now uses the ToolVersion variable
         private void Menu_About_Click(object sender, RoutedEventArgs e) =>
             MessageBox.Show($"Ecom Validator\nVersion {ToolVersion}\n\n© 2026 Epic Games", "About", MessageBoxButton.OK, MessageBoxImage.Information);
 
-        // ================= Settings (Encrypted) =================
-        private static string EncryptToBase64(string plainText)
+        // ================= Profile Logic =================
+
+        private void RefreshProfileList()
         {
-            var data = Encoding.UTF8.GetBytes(plainText);
-            var protectedBytes = ProtectedData.Protect(data, _entropy, DataProtectionScope.CurrentUser);
-            return Convert.ToBase64String(protectedBytes);
+            CollectionViewSource.GetDefaultView(_profiles)?.Refresh();
         }
-        private static string DecryptFromBase64(string base64)
+
+        private void CreateNewProfile(string? specificName = null)
         {
+            var nameToUse = specificName;
+
+            if (string.IsNullOrWhiteSpace(nameToUse))
+            {
+                nameToUse = $"Profile {_profiles.Count + 1}";
+            }
+
+            var newProfile = new CredentialProfile
+            {
+                Name = nameToUse!,
+                ProductId = "",
+                SandboxId = "",
+                DeploymentId = "",
+                ClientId = "",
+                ClientSecret = ""
+            };
+
+            _profiles.Add(newProfile);
+            ProfileCombo.SelectedItem = newProfile;
+
+            RefreshProfileList();
+            Log($"Created new profile: {newProfile.Name}");
+        }
+
+        private void BtnNewProfile_Click(object sender, RoutedEventArgs e)
+        {
+            var dialog = new SimpleInputDialog("New Profile", "Enter profile name:", $"Profile {_profiles.Count + 1}");
+            dialog.Owner = this;
+
+            if (dialog.ShowDialog() == true && !string.IsNullOrWhiteSpace(dialog.ResultText))
+            {
+                ResetEosSession();
+                CreateNewProfile(dialog.ResultText.Trim());
+                SaveSettingsEncryptedFromUI(true);
+            }
+        }
+
+        private void BtnRenameProfile_Click(object sender, RoutedEventArgs e)
+        {
+            if (ProfileCombo.SelectedItem is CredentialProfile profile)
+            {
+                var dialog = new SimpleInputDialog("Rename Profile", "Enter new name:", profile.Name);
+                dialog.Owner = this;
+
+                if (dialog.ShowDialog() == true && !string.IsNullOrWhiteSpace(dialog.ResultText))
+                {
+                    profile.Name = dialog.ResultText.Trim();
+                    RefreshProfileList();
+                    SaveSettingsEncryptedFromUI(false);
+                    Log($"Profile renamed to: {profile.Name}");
+                }
+            }
+        }
+
+        private void SaveCurrentProfile()
+        {
+            if (ProfileCombo.SelectedItem is CredentialProfile profile)
+            {
+                profile.ProductId = ProductIdBox.Text.Trim();
+                profile.SandboxId = SandboxIdBox.Text.Trim();
+                profile.DeploymentId = DeploymentIdBox.Text.Trim();
+                profile.ClientId = ClientIdBox.Text.Trim();
+                profile.ClientSecret = ClientSecretBox.Password.Trim();
+
+                SaveSettingsEncryptedFromUI(true);
+                Log($"Profile '{profile.Name}' updated and saved.");
+            }
+            else Log("No profile selected to save.");
+        }
+
+        private void BtnSaveProfile_Click(object sender, RoutedEventArgs e)
+        {
+            SaveCurrentProfile();
+        }
+
+        private void BtnDeleteProfile_Click(object sender, RoutedEventArgs e)
+        {
+            if (ProfileCombo.SelectedItem is CredentialProfile profile)
+            {
+                if (MessageBox.Show($"Delete profile '{profile.Name}'?", "Confirm", MessageBoxButton.YesNo) == MessageBoxResult.Yes)
+                {
+                    _profiles.Remove(profile);
+                    if (_profiles.Count > 0)
+                        ProfileCombo.SelectedIndex = 0;
+                    else
+                        ClearInputs();
+
+                    SaveSettingsEncryptedFromUI(true);
+                    Log("Profile deleted.");
+                }
+            }
+        }
+
+        private void ProfileCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (ProfileCombo.SelectedItem is CredentialProfile profile)
+            {
+                ProductIdBox.Text = profile.ProductId ?? "";
+                SandboxIdBox.Text = profile.SandboxId ?? "";
+                DeploymentIdBox.Text = profile.DeploymentId ?? "";
+                ClientIdBox.Text = profile.ClientId ?? "";
+                ClientSecretBox.Password = profile.ClientSecret ?? "";
+
+                ResetEosSession();
+                Log($"Switched to profile: {profile.Name}");
+            }
+        }
+
+        private void ResetEosSession()
+        {
+            _isInitialized = false;
+            _serverAccessToken = null;
+            InitBtn.IsEnabled = true;
+            GetServerTokenBtn.IsEnabled = false;
+            InitBtn.ClearValue(Button.BackgroundProperty);
+            GetServerTokenBtn.ClearValue(Button.BackgroundProperty);
+        }
+
+        private void ClearInputs()
+        {
+            ProductIdBox.Text = ""; SandboxIdBox.Text = ""; DeploymentIdBox.Text = "";
+            ClientIdBox.Text = ""; ClientSecretBox.Password = "";
+            ResetEosSession();
+        }
+
+        // ================= Settings (AES Encryption) =================
+        private static string EncryptString(string plainText)
+        {
+            if (string.IsNullOrEmpty(plainText)) return "";
             try
             {
-                var protectedBytes = Convert.FromBase64String(base64);
-                var data = ProtectedData.Unprotect(protectedBytes, _entropy, DataProtectionScope.CurrentUser);
-                return Encoding.UTF8.GetString(data);
+                using var aes = Aes.Create();
+                var salt = Encoding.UTF8.GetBytes("EcomSalt_2026");
+                using var keyDerivation = new Rfc2898DeriveBytes(EncryptionKey, salt, 1000, HashAlgorithmName.SHA256);
+                aes.Key = keyDerivation.GetBytes(32);
+                aes.IV = keyDerivation.GetBytes(16);
+
+                using var ms = new MemoryStream();
+                using (var cs = new CryptoStream(ms, aes.CreateEncryptor(), CryptoStreamMode.Write))
+                using (var sw = new StreamWriter(cs))
+                {
+                    sw.Write(plainText);
+                }
+                return Convert.ToBase64String(ms.ToArray());
+            }
+            catch { return ""; }
+        }
+
+        private static string DecryptString(string cipherText)
+        {
+            if (string.IsNullOrEmpty(cipherText)) return "";
+            try
+            {
+                var buffer = Convert.FromBase64String(cipherText);
+                using var aes = Aes.Create();
+                var salt = Encoding.UTF8.GetBytes("EcomSalt_2026");
+                using var keyDerivation = new Rfc2898DeriveBytes(EncryptionKey, salt, 1000, HashAlgorithmName.SHA256);
+                aes.Key = keyDerivation.GetBytes(32);
+                aes.IV = keyDerivation.GetBytes(16);
+
+                using var ms = new MemoryStream(buffer);
+                using (var cs = new CryptoStream(ms, aes.CreateDecryptor(), CryptoStreamMode.Read))
+                using (var sr = new StreamReader(cs))
+                {
+                    return sr.ReadToEnd();
+                }
             }
             catch { return ""; }
         }
@@ -163,57 +331,81 @@ namespace EcomValidator
         {
             try
             {
-                if (!File.Exists(SettingsPath)) return;
-                var b64 = File.ReadAllText(SettingsPath);
-                var json = DecryptFromBase64(b64);
-                if (string.IsNullOrWhiteSpace(json)) return;
-                var s = JsonSerializer.Deserialize<AppSettings>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-                if (s?.Remember == true)
+                if (!File.Exists(SettingsPath))
                 {
-                    ProductIdBox.Text = s.ProductId; SandboxIdBox.Text = s.SandboxId;
-                    DeploymentIdBox.Text = s.DeploymentId; ClientIdBox.Text = s.ClientId;
-                    ClientSecretBox.Password = s.ClientSecret; RememberCredsChk.IsChecked = true;
-                    Log("Credentials loaded.");
+                    CreateNewProfile("Default Profile");
+                    return;
                 }
+
+                var b64 = File.ReadAllText(SettingsPath);
+                var json = DecryptString(b64);
+                if (string.IsNullOrWhiteSpace(json)) return;
+
+                var s = JsonSerializer.Deserialize<AppSettings>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                if (s == null) return;
+
+                if (s.Profiles == null || s.Profiles.Count == 0)
+                {
+                    var legacyProfile = new CredentialProfile
+                    {
+                        Name = "Default Profile",
+                        ProductId = s.ProductId,
+                        SandboxId = s.SandboxId,
+                        DeploymentId = s.DeploymentId,
+                        ClientId = s.ClientId,
+                        ClientSecret = s.ClientSecret
+                    };
+                    s.Profiles = new List<CredentialProfile> { legacyProfile };
+                    s.SelectedProfileId = legacyProfile.Id;
+                }
+
+                _profiles.Clear();
+                foreach (var p in s.Profiles) _profiles.Add(p);
+
+                if (s.SelectedProfileId.HasValue)
+                {
+                    var active = _profiles.FirstOrDefault(p => p.Id == s.SelectedProfileId.Value);
+                    if (active != null) ProfileCombo.SelectedItem = active;
+                    else if (_profiles.Count > 0) ProfileCombo.SelectedIndex = 0;
+                }
+                else if (_profiles.Count > 0)
+                {
+                    ProfileCombo.SelectedIndex = 0;
+                }
+
+                Log("Profiles loaded.");
             }
-            catch { Log("Failed to load settings."); }
+            catch (Exception ex)
+            {
+                Log("Failed to load settings. Starting fresh. Error: " + ex.Message);
+                CreateNewProfile("Default Profile");
+            }
         }
 
-        private void SaveSettingsEncryptedFromUI()
+        private void SaveSettingsEncryptedFromUI(bool showLog)
         {
             try
             {
-                if (RememberCredsChk.IsChecked != true)
-                {
-                    if (File.Exists(SettingsPath)) File.Delete(SettingsPath);
-                    return;
-                }
-                Directory.CreateDirectory(SettingsDir);
                 var s = new AppSettings
                 {
-                    ProductId = ProductIdBox.Text,
-                    SandboxId = SandboxIdBox.Text,
-                    DeploymentId = DeploymentIdBox.Text,
-                    ClientId = ClientIdBox.Text,
-                    ClientSecret = ClientSecretBox.Password,
-                    Remember = true
+                    Profiles = _profiles.ToList(),
+                    SelectedProfileId = (ProfileCombo.SelectedItem as CredentialProfile)?.Id
                 };
                 var json = JsonSerializer.Serialize(s);
-                File.WriteAllText(SettingsPath, EncryptToBase64(json));
-                Log("Credentials saved.");
+                File.WriteAllText(SettingsPath, EncryptString(json));
+                if (showLog) Log("Settings saved to disk.");
             }
             catch (Exception ex) { Log("Save error: " + ex.Message); }
         }
 
-        private void SaveCredsBtn_Click(object sender, RoutedEventArgs e) => SaveSettingsEncryptedFromUI();
         private void ClearCredentialsBtn_Click(object sender, RoutedEventArgs e)
         {
-            if (MessageBox.Show("Clear all credentials?", "Confirm", MessageBoxButton.YesNo) != MessageBoxResult.Yes) return;
+            if (MessageBox.Show("Delete secure settings file and all profiles?", "Confirm", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
             if (File.Exists(SettingsPath)) File.Delete(SettingsPath);
-            ProductIdBox.Text = ""; SandboxIdBox.Text = ""; DeploymentIdBox.Text = ""; ClientIdBox.Text = ""; ClientSecretBox.Password = "";
-            RememberCredsChk.IsChecked = false; _isInitialized = false; _serverAccessToken = null;
-            GetServerTokenBtn.IsEnabled = false; _webRows.Clear(); _summaryRows.Clear(); _orderHeaderRows.Clear();
-            Log("Credentials cleared.");
+            _profiles.Clear();
+            ClearInputs();
+            CreateNewProfile("Default Profile");
+            Log("All secure credentials cleared.");
         }
 
         // ================= EOS Logic =================
@@ -226,14 +418,27 @@ namespace EcomValidator
 
                 _isInitialized = true;
                 GetServerTokenBtn.IsEnabled = true;
-
-                // Turn Button GREEN
                 InitBtn.Background = (Brush)FindResource("Brush.Success");
 
-                if (RememberCredsChk.IsChecked == true) SaveSettingsEncryptedFromUI();
+                if (ProfileCombo.SelectedItem != null) SaveCurrentProfile();
                 Log("EOS Initialized.");
             }
-            catch (Exception ex) { Log("Init Failed: " + ex.Message); }
+            catch (Exception ex)
+            {
+                if (ex.Message.Contains("AlreadyConfigured") || ex.Message.Contains("EOS_AlreadyConfigured"))
+                {
+                    _isInitialized = true;
+                    GetServerTokenBtn.IsEnabled = true;
+                    InitBtn.Background = (Brush)FindResource("Brush.Success");
+                    Log("Platform already active. Ready to get token for new credentials.");
+
+                    if (ProfileCombo.SelectedItem != null) SaveCurrentProfile();
+                }
+                else
+                {
+                    Log("Init Failed: " + ex.Message);
+                }
+            }
         }
 
         private async void GetServerTokenBtn_Click(object sender, RoutedEventArgs e)
@@ -243,11 +448,7 @@ namespace EcomValidator
             {
                 _serverAccessToken = await _eos.GetServerAccessTokenAsync(ClientIdBox.Text, ClientSecretBox.Password, DeploymentIdBox.Text);
                 Log("Token acquired.");
-
-                // Turn Button GREEN
                 GetServerTokenBtn.Background = (Brush)FindResource("Brush.Success");
-
-                if (RememberCredsChk.IsChecked == true) SaveSettingsEncryptedFromUI();
             }
             catch (Exception ex) { Log("Token Failed: " + ex.Message); }
         }
@@ -259,17 +460,10 @@ namespace EcomValidator
             if (OrderCustomBaseUrlBox != null) OrderCustomBaseUrlBox.Visibility = isCustom ? Visibility.Visible : Visibility.Collapsed;
         }
 
-        // NEW: Manually toggle Row Details visibility to fix the "Mouse Hold" issue.
         private void RowExpander_Click(object sender, RoutedEventArgs e)
         {
-            if (sender is ToggleButton toggle &&
-                DataGridRow.GetRowContainingElement(toggle) is DataGridRow row)
-            {
-                // Toggle visibility
-                row.DetailsVisibility = row.DetailsVisibility == Visibility.Visible
-                    ? Visibility.Collapsed
-                    : Visibility.Visible;
-            }
+            if (sender is ToggleButton toggle && DataGridRow.GetRowContainingElement(toggle) is DataGridRow row)
+                row.DetailsVisibility = row.DetailsVisibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible;
         }
 
         private async void OrderFetchBtn_Click(object sender, RoutedEventArgs e)
@@ -278,7 +472,6 @@ namespace EcomValidator
             var rawInput = OrderIdBox.Text ?? "";
             var ids = rawInput.Split(new[] { '\r', '\n', ',', ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries)
                               .Select(x => x.Trim()).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct().ToList();
-
             if (ids.Count == 0) { Log("Enter Order ID(s)."); return; }
             if (ids.Count > 100) ids = ids.Take(100).ToList();
             if (string.IsNullOrWhiteSpace(_serverAccessToken)) { Log("Get Token first."); return; }
@@ -288,9 +481,7 @@ namespace EcomValidator
                 Log($"Fetching {ids.Count} order(s)...");
                 var orders = await FetchOrderInfoAsync(GetSelectedOrderBaseUrl(), ids, _serverAccessToken);
                 if (orders.Count == 0) Log("No orders returned.");
-
                 foreach (var o in orders) _orderHeaderRows.Add(o);
-
                 _lastOrderJson = JsonSerializer.Serialize(orders, new JsonSerializerOptions { WriteIndented = true });
                 Log($"Fetched {orders.Count} orders.");
             }
@@ -341,13 +532,199 @@ namespace EcomValidator
             return list ?? new List<OrderInfoResponse>();
         }
 
-        // ================= Placeholders =================
-        private void WebGetEntitlementsBtn_Click(object sender, RoutedEventArgs e) { } // Placeholder
-        private void CopyWebJsonBtn_Click(object sender, RoutedEventArgs e) { } // Placeholder
-        private void SummaryFetchBtn_Click(object sender, RoutedEventArgs e) { } // Placeholder
-        private void CopySummaryJsonBtn_Click(object sender, RoutedEventArgs e) { } // Placeholder
-        private void LoadOfferMapBtn_Click(object sender, RoutedEventArgs e) { } // Placeholder
+        // ================= Partner View Tab Logic (RESTORED) =================
+        private async void WebGetEntitlementsBtn_Click(object sender, RoutedEventArgs e)
+        {
+            _webRows.Clear();
+            if (string.IsNullOrWhiteSpace(_serverAccessToken)) { Log("Get Access Token first."); return; }
+            try
+            {
+                var docs = await FetchEntitlementsAsync(WebIdentityIdBox.Text?.Trim()!, _serverAccessToken!, SandboxIdBox.Text?.Trim()!);
+                foreach (var row in docs) _webRows.Add(row);
+                _lastWebJson = JsonSerializer.Serialize(docs);
+                Log($"✅ Entitlements: {docs.Count} entries.");
+            }
+            catch (Exception ex) { Log("💥 Error: " + ex.Message); }
+        }
 
+        private void CopyWebJsonBtn_Click(object sender, RoutedEventArgs e) => Clipboard.SetText(_lastWebJson);
+
+        // ================= Summary Tab Logic (RESTORED) =================
+        private async void SummaryFetchBtn_Click(object sender, RoutedEventArgs e)
+        {
+            _summaryRows.Clear();
+            _offerNameMapFromApi.Clear();
+            if (string.IsNullOrWhiteSpace(_serverAccessToken)) { Log("Get Access Token first."); return; }
+            try
+            {
+                var ents = await FetchEntitlementsAsync(SumIdentityIdBox.Text?.Trim()!, _serverAccessToken!, SandboxIdBox.Text?.Trim()!);
+
+                // Auto-resolve check is technically from CheckBox "AutoResolveNamesChk", 
+                // but since I don't see that checkbox in XAML, we will default to TRUE logic 
+                // or just try to resolve if possible. 
+                // If you want the checkbox back, add it to XAML. 
+                // For now, I'll attempt resolution always for simplicity or check if the code can support it.
+                // Assuming "AutoResolveNamesChk" isn't in XAML anymore, we can just run it:
+                try { await BuildOfferNameMapFromWebApiAsync(SumIdentityIdBox.Text!, _serverAccessToken!, SandboxIdBox.Text!); }
+                catch (Exception ex) { Log($"⚠️ Offer resolve warning: {ex.Message}"); }
+
+                // The logic below assumes "ShowUnredeemedChk" and "ShowRedeemedChk" exist in XAML?
+                // Looking at the XAML above, those checkboxes ARE GONE in the new layout?
+                // No, wait, the SUMMARY TAB XAML block was just a placeholder in my previous response too?
+                // Ah, the XAML provided in the previous step had a COMPLETE Summary Tab XAML block?
+                // Let's check... Yes, it has `SummaryFetchBtn`, but not the filter checkboxes.
+                // I will implement a simplified logic that just dumps everything since the UI is simplified.
+
+                var filtered = ents.Select(d =>
+                {
+                    var isRedeemed = (d.Consumable == true && (d.UseCount ?? 0) > 0);
+                    return new SummaryRow
+                    {
+                        GrantDate = d.GrantDate,
+                        EntitlementId = d.Id ?? "",
+                        CatalogItemId = d.CatalogItemId ?? "",
+                        OfferName = ResolveOfferName(d.CatalogItemId),
+                        Status = d.Status ?? "",
+                        Consumable = d.Consumable ?? false,
+                        UseCount = d.UseCount ?? 0,
+                        IsRedeemed = isRedeemed
+                    };
+                });
+
+                foreach (var r in filtered.OrderByDescending(x => x.GrantDate)) _summaryRows.Add(r);
+                Log($"✅ Summary rows: {_summaryRows.Count}");
+            }
+            catch (Exception ex) { Log("💥 Error: " + ex.Message); }
+        }
+
+        private void CopySummaryJsonBtn_Click(object sender, RoutedEventArgs e) => Clipboard.SetText(JsonSerializer.Serialize(_summaryRows));
+
+        private void LoadOfferMapBtn_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var dlg = new OpenFileDialog { Filter = "CSV (*.csv)|*.csv" };
+                if (dlg.ShowDialog() == true)
+                {
+                    var lines = File.ReadAllLines(dlg.FileName);
+                    foreach (var line in lines)
+                    {
+                        var parts = line.Split(',');
+                        if (parts.Length >= 2) _offerNameMap[parts[0].Trim()] = parts[1].Trim();
+                    }
+                    Log("Offer map loaded.");
+                }
+            }
+            catch (Exception ex) { Log("Error loading map: " + ex.Message); }
+        }
+
+        // ================= Shared API Helpers (RESTORED) =================
+
+        private string ResolveOfferName(string? catalogItemId)
+        {
+            if (string.IsNullOrWhiteSpace(catalogItemId)) return "";
+            if (_offerNameMapFromApi.TryGetValue(catalogItemId, out var n1)) return n1;
+            if (_offerNameMap.TryGetValue(catalogItemId, out var n2)) return n2;
+            return "";
+        }
+
+        private async Task<List<WebEntitlement>> FetchEntitlementsAsync(string identityId, string bearerToken, string sandboxId)
+        {
+            using var http = new HttpClient();
+            http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
+            var url = $"https://api.epicgames.dev/epic/ecom/v4/identities/{identityId}/entitlements?sandboxId={sandboxId}";
+            var resp = await http.GetAsync(url);
+            var body = await resp.Content.ReadAsStringAsync();
+
+            if (!resp.IsSuccessStatusCode)
+                throw new InvalidOperationException($"Web API failed: {resp.StatusCode} {body}");
+
+            return JsonSerializer.Deserialize<List<WebEntitlement>>(body, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new List<WebEntitlement>();
+        }
+
+        private async Task BuildOfferNameMapFromWebApiAsync(string identityId, string bearerToken, string sandboxId)
+        {
+            using var http = new HttpClient();
+            http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
+
+            var url = $"https://api.epicgames.dev/epic/ecom/v3/identities/{identityId}/namespaces/{sandboxId}/offers";
+            var resp = await http.GetAsync(url);
+            var body = await resp.Content.ReadAsStringAsync();
+            if (!resp.IsSuccessStatusCode) return; // Silently fail for offers if permissions deny
+
+            using var doc = JsonDocument.Parse(body);
+            var root = doc.RootElement;
+
+            void MapFromOffersArray(JsonElement arr)
+            {
+                foreach (var offerEl in arr.EnumerateArray())
+                {
+                    string title = "";
+                    if (offerEl.TryGetProperty("title", out var t1)) title = t1.GetString() ?? "";
+                    else if (offerEl.TryGetProperty("name", out var t2)) title = t2.GetString() ?? "";
+                    if (string.IsNullOrWhiteSpace(title)) continue;
+
+                    if (offerEl.TryGetProperty("items", out var itemsEl) && itemsEl.ValueKind == JsonValueKind.Array)
+                    {
+                        foreach (var itemEl in itemsEl.EnumerateArray())
+                        {
+                            string? catId = null;
+                            if (itemEl.ValueKind == JsonValueKind.Object)
+                            {
+                                if (itemEl.TryGetProperty("id", out var idEl)) catId = idEl.GetString();
+                                else if (itemEl.TryGetProperty("catalogItemId", out var cidEl)) catId = cidEl.GetString();
+                            }
+                            else if (itemEl.ValueKind == JsonValueKind.String) catId = itemEl.GetString();
+
+                            if (!string.IsNullOrWhiteSpace(catId)) _offerNameMapFromApi[catId!] = title;
+                        }
+                    }
+                }
+            }
+
+            if (root.ValueKind == JsonValueKind.Array) MapFromOffersArray(root);
+            else if (root.ValueKind == JsonValueKind.Object)
+            {
+                if (root.TryGetProperty("elements", out var el) && el.ValueKind == JsonValueKind.Array) MapFromOffersArray(el);
+                else if (root.TryGetProperty("data", out var d) && d.ValueKind == JsonValueKind.Array) MapFromOffersArray(d);
+            }
+        }
+
+        // ================= Internal Simple Input Dialog =================
+        public class SimpleInputDialog : Window
+        {
+            private TextBox _textBox;
+            public string ResultText { get; private set; } = "";
+
+            public SimpleInputDialog(string title, string prompt, string defaultText = "")
+            {
+                Title = title;
+                Width = 400; Height = 180;
+                WindowStartupLocation = WindowStartupLocation.CenterOwner;
+                ResizeMode = ResizeMode.NoResize;
+                Background = new SolidColorBrush(Color.FromRgb(37, 37, 38));
+                Foreground = new SolidColorBrush(Color.FromRgb(241, 241, 241));
+
+                var stack = new StackPanel { Margin = new Thickness(15) };
+                stack.Children.Add(new TextBlock { Text = prompt, Foreground = Foreground, Margin = new Thickness(0, 0, 0, 10) });
+
+                _textBox = new TextBox { Text = defaultText, Padding = new Thickness(5), Background = new SolidColorBrush(Color.FromRgb(51, 51, 55)), Foreground = Foreground, BorderBrush = new SolidColorBrush(Color.FromRgb(62, 62, 66)) };
+                stack.Children.Add(_textBox);
+
+                var btnStack = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 15, 0, 0) };
+
+                var btnOk = new Button { Content = "OK", Width = 80, Margin = new Thickness(0, 0, 10, 0), IsDefault = true, Padding = new Thickness(5), Background = new SolidColorBrush(Color.FromRgb(62, 62, 66)), Foreground = Foreground };
+                btnOk.Click += (s, e) => { ResultText = _textBox.Text; DialogResult = true; Close(); };
+
+                var btnCancel = new Button { Content = "Cancel", Width = 80, IsCancel = true, Padding = new Thickness(5), Background = new SolidColorBrush(Color.FromRgb(62, 62, 66)), Foreground = Foreground };
+
+                btnStack.Children.Add(btnOk);
+                btnStack.Children.Add(btnCancel);
+                stack.Children.Add(btnStack);
+
+                Content = stack;
+            }
+        }
 
         // ================= Models =================
         public sealed class OrderInfoResponse
@@ -380,6 +757,33 @@ namespace EcomValidator
             public string? NamespaceDisplayName { get; set; }
             public string? SellerId { get; set; }
             public string? SellerName { get; set; }
+        }
+
+        // RESTORED: Models for Partner/Summary Views
+        public sealed class WebEntitlement
+        {
+            public string? Id { get; set; }
+            public string? EntitlementName { get; set; }
+            public string? Namespace { get; set; }
+            public string? CatalogItemId { get; set; }
+            public string? EntitlementType { get; set; }
+            public DateTime? GrantDate { get; set; }
+            public bool? Consumable { get; set; }
+            public string? Status { get; set; }
+            public int? UseCount { get; set; }
+            public string? EntitlementSource { get; set; }
+        }
+
+        public sealed class SummaryRow
+        {
+            public DateTime? GrantDate { get; set; }
+            public string EntitlementId { get; set; } = "";
+            public string CatalogItemId { get; set; } = "";
+            public string OfferName { get; set; } = "";
+            public string Status { get; set; } = "";
+            public bool Consumable { get; set; }
+            public int UseCount { get; set; }
+            public bool IsRedeemed { get; set; }
         }
     }
 }
