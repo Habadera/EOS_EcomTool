@@ -26,18 +26,17 @@ namespace EcomValidator
 {
     public partial class MainWindow : Window
     {
-        private const string ToolVersion = "1.6"; // Bumped for Full Restoration
+        private const string ToolVersion = "2.1";
 
         private readonly EosInitialize _eos;
 
-        private readonly ObservableCollection<object> _webRows = new();
-        private readonly ObservableCollection<object> _summaryRows = new();
         private readonly ObservableCollection<OrderInfoResponse> _orderHeaderRows = new();
+        private readonly ObservableCollection<UserEntitlementRow> _userRows = new();
 
         private readonly ObservableCollection<CredentialProfile> _profiles = new();
 
         private string _lastOrderJson = "";
-        private string _lastWebJson = "";
+        private string _lastUserJson = "";
         private string? _serverAccessToken;
         private bool _isInitialized = false;
 
@@ -104,8 +103,7 @@ namespace EcomValidator
 
             OrderEnvCombo.SelectedIndex = 0;
 
-            WebEntitlementsGrid.ItemsSource = _webRows;
-            SummaryGrid.ItemsSource = _summaryRows;
+            UserInfoGrid.ItemsSource = _userRows;
             OrderHeaderGrid.ItemsSource = _orderHeaderRows;
 
             ProfileCombo.ItemsSource = _profiles;
@@ -261,6 +259,17 @@ namespace EcomValidator
                 ClientSecretBox.Password = profile.ClientSecret ?? "";
 
                 ResetEosSession();
+
+                // === FIX: Clear Data Grids & Inputs on Profile Switch ===
+                _orderHeaderRows.Clear();
+                _userRows.Clear();
+
+                OrderIdBox.Text = "";       // Clear Order IDs
+                UserIdentityIdBox.Text = ""; // Clear Identity ID
+
+                _lastOrderJson = "";
+                _lastUserJson = "";
+
                 Log($"Switched to profile: {profile.Name}");
             }
         }
@@ -532,72 +541,51 @@ namespace EcomValidator
             return list ?? new List<OrderInfoResponse>();
         }
 
-        // ================= Partner View Tab Logic (RESTORED) =================
-        private async void WebGetEntitlementsBtn_Click(object sender, RoutedEventArgs e)
+        // ================= USER INFO TAB LOGIC =================
+        private async void UserFetchBtn_Click(object sender, RoutedEventArgs e)
         {
-            _webRows.Clear();
-            if (string.IsNullOrWhiteSpace(_serverAccessToken)) { Log("Get Access Token first."); return; }
-            try
-            {
-                var docs = await FetchEntitlementsAsync(WebIdentityIdBox.Text?.Trim()!, _serverAccessToken!, SandboxIdBox.Text?.Trim()!);
-                foreach (var row in docs) _webRows.Add(row);
-                _lastWebJson = JsonSerializer.Serialize(docs);
-                Log($"✅ Entitlements: {docs.Count} entries.");
-            }
-            catch (Exception ex) { Log("💥 Error: " + ex.Message); }
-        }
-
-        private void CopyWebJsonBtn_Click(object sender, RoutedEventArgs e) => Clipboard.SetText(_lastWebJson);
-
-        // ================= Summary Tab Logic (RESTORED) =================
-        private async void SummaryFetchBtn_Click(object sender, RoutedEventArgs e)
-        {
-            _summaryRows.Clear();
+            _userRows.Clear();
             _offerNameMapFromApi.Clear();
+
             if (string.IsNullOrWhiteSpace(_serverAccessToken)) { Log("Get Access Token first."); return; }
+            if (string.IsNullOrWhiteSpace(UserIdentityIdBox.Text)) { Log("Enter Identity ID."); return; }
+
             try
             {
-                var ents = await FetchEntitlementsAsync(SumIdentityIdBox.Text?.Trim()!, _serverAccessToken!, SandboxIdBox.Text?.Trim()!);
+                var identityId = UserIdentityIdBox.Text.Trim();
+                var sandboxId = SandboxIdBox.Text.Trim();
 
-                // Auto-resolve check is technically from CheckBox "AutoResolveNamesChk", 
-                // but since I don't see that checkbox in XAML, we will default to TRUE logic 
-                // or just try to resolve if possible. 
-                // If you want the checkbox back, add it to XAML. 
-                // For now, I'll attempt resolution always for simplicity or check if the code can support it.
-                // Assuming "AutoResolveNamesChk" isn't in XAML anymore, we can just run it:
-                try { await BuildOfferNameMapFromWebApiAsync(SumIdentityIdBox.Text!, _serverAccessToken!, SandboxIdBox.Text!); }
-                catch (Exception ex) { Log($"⚠️ Offer resolve warning: {ex.Message}"); }
+                // 1. Fetch raw entitlements
+                var rawEntitlements = await FetchEntitlementsAsync(identityId, _serverAccessToken!, sandboxId);
 
-                // The logic below assumes "ShowUnredeemedChk" and "ShowRedeemedChk" exist in XAML?
-                // Looking at the XAML above, those checkboxes ARE GONE in the new layout?
-                // No, wait, the SUMMARY TAB XAML block was just a placeholder in my previous response too?
-                // Ah, the XAML provided in the previous step had a COMPLETE Summary Tab XAML block?
-                // Let's check... Yes, it has `SummaryFetchBtn`, but not the filter checkboxes.
-                // I will implement a simplified logic that just dumps everything since the UI is simplified.
+                // 2. Try to resolve offer names from API (best effort)
+                try { await BuildOfferNameMapFromWebApiAsync(identityId, _serverAccessToken!, sandboxId); }
+                catch (Exception ex) { Log($"⚠️ Name resolution warning: {ex.Message}"); }
 
-                var filtered = ents.Select(d =>
+                // 3. Map to unified view model
+                var unifiedList = rawEntitlements.Select(d =>
                 {
                     var isRedeemed = (d.Consumable == true && (d.UseCount ?? 0) > 0);
-                    return new SummaryRow
+                    return new UserEntitlementRow
                     {
-                        GrantDate = d.GrantDate,
                         EntitlementId = d.Id ?? "",
                         CatalogItemId = d.CatalogItemId ?? "",
                         OfferName = ResolveOfferName(d.CatalogItemId),
                         Status = d.Status ?? "",
-                        Consumable = d.Consumable ?? false,
-                        UseCount = d.UseCount ?? 0,
-                        IsRedeemed = isRedeemed
+                        IsRedeemed = isRedeemed ? "Yes" : "No",
+                        GrantDate = d.GrantDate
                     };
                 });
 
-                foreach (var r in filtered.OrderByDescending(x => x.GrantDate)) _summaryRows.Add(r);
-                Log($"✅ Summary rows: {_summaryRows.Count}");
+                foreach (var r in unifiedList.OrderByDescending(x => x.GrantDate)) _userRows.Add(r);
+
+                _lastUserJson = JsonSerializer.Serialize(rawEntitlements, new JsonSerializerOptions { WriteIndented = true });
+                Log($"✅ Fetched {rawEntitlements.Count} user entitlements.");
             }
             catch (Exception ex) { Log("💥 Error: " + ex.Message); }
         }
 
-        private void CopySummaryJsonBtn_Click(object sender, RoutedEventArgs e) => Clipboard.SetText(JsonSerializer.Serialize(_summaryRows));
+        private void CopyUserJsonBtn_Click(object sender, RoutedEventArgs e) => Clipboard.SetText(_lastUserJson);
 
         private void LoadOfferMapBtn_Click(object sender, RoutedEventArgs e)
         {
@@ -618,7 +606,7 @@ namespace EcomValidator
             catch (Exception ex) { Log("Error loading map: " + ex.Message); }
         }
 
-        // ================= Shared API Helpers (RESTORED) =================
+        // ================= Shared API Helpers =================
 
         private string ResolveOfferName(string? catalogItemId)
         {
@@ -650,7 +638,7 @@ namespace EcomValidator
             var url = $"https://api.epicgames.dev/epic/ecom/v3/identities/{identityId}/namespaces/{sandboxId}/offers";
             var resp = await http.GetAsync(url);
             var body = await resp.Content.ReadAsStringAsync();
-            if (!resp.IsSuccessStatusCode) return; // Silently fail for offers if permissions deny
+            if (!resp.IsSuccessStatusCode) return;
 
             using var doc = JsonDocument.Parse(body);
             var root = doc.RootElement;
@@ -759,31 +747,25 @@ namespace EcomValidator
             public string? SellerName { get; set; }
         }
 
-        // RESTORED: Models for Partner/Summary Views
+        // New Unified Model
+        public sealed class UserEntitlementRow
+        {
+            public string? OfferName { get; set; }
+            public string? Status { get; set; }
+            public string? IsRedeemed { get; set; }
+            public DateTime? GrantDate { get; set; }
+            public string? EntitlementId { get; set; }
+            public string? CatalogItemId { get; set; }
+        }
+
         public sealed class WebEntitlement
         {
             public string? Id { get; set; }
-            public string? EntitlementName { get; set; }
-            public string? Namespace { get; set; }
             public string? CatalogItemId { get; set; }
-            public string? EntitlementType { get; set; }
             public DateTime? GrantDate { get; set; }
             public bool? Consumable { get; set; }
             public string? Status { get; set; }
             public int? UseCount { get; set; }
-            public string? EntitlementSource { get; set; }
-        }
-
-        public sealed class SummaryRow
-        {
-            public DateTime? GrantDate { get; set; }
-            public string EntitlementId { get; set; } = "";
-            public string CatalogItemId { get; set; } = "";
-            public string OfferName { get; set; } = "";
-            public string Status { get; set; } = "";
-            public bool Consumable { get; set; }
-            public int UseCount { get; set; }
-            public bool IsRedeemed { get; set; }
         }
     }
 }
