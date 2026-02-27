@@ -43,9 +43,6 @@ namespace EcomValidator
 
         private const string OrderBaseUrl_Prod = "https://api.epicgames.dev";
 
-        private static string SettingsPath => Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "settings.secure");
-        private const string EncryptionKey = "EcomValidator_Portable_Key_2026!";
-
         private readonly Dictionary<string, string> _offerNameMap = new(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, string> _offerNameMapFromApi = new(StringComparer.OrdinalIgnoreCase);
 
@@ -255,67 +252,16 @@ namespace EcomValidator
             ResetEosSession();
         }
 
-        // ================= Settings (AES Encryption) =================
-        private static string EncryptString(string plainText)
-        {
-            if (string.IsNullOrEmpty(plainText)) return "";
-            try
-            {
-                using var aes = Aes.Create();
-                var salt = Encoding.UTF8.GetBytes("EcomSalt_2026");
-                using var keyDerivation = new Rfc2898DeriveBytes(EncryptionKey, salt, 1000, HashAlgorithmName.SHA256);
-                aes.Key = keyDerivation.GetBytes(32);
-                aes.IV = keyDerivation.GetBytes(16);
-
-                using var ms = new MemoryStream();
-                using (var cs = new CryptoStream(ms, aes.CreateEncryptor(), CryptoStreamMode.Write))
-                using (var sw = new StreamWriter(cs))
-                {
-                    sw.Write(plainText);
-                }
-                return Convert.ToBase64String(ms.ToArray());
-            }
-            catch { return ""; }
-        }
-
-        private static string DecryptString(string cipherText)
-        {
-            if (string.IsNullOrEmpty(cipherText)) return "";
-            try
-            {
-                var buffer = Convert.FromBase64String(cipherText);
-                using var aes = Aes.Create();
-                var salt = Encoding.UTF8.GetBytes("EcomSalt_2026");
-                using var keyDerivation = new Rfc2898DeriveBytes(EncryptionKey, salt, 1000, HashAlgorithmName.SHA256);
-                aes.Key = keyDerivation.GetBytes(32);
-                aes.IV = keyDerivation.GetBytes(16);
-
-                using var ms = new MemoryStream(buffer);
-                using (var cs = new CryptoStream(ms, aes.CreateDecryptor(), CryptoStreamMode.Read))
-                using (var sr = new StreamReader(cs))
-                {
-                    return sr.ReadToEnd();
-                }
-            }
-            catch { return ""; }
-        }
-
         private void LoadSettingsEncrypted()
         {
             try
             {
-                if (!File.Exists(SettingsPath))
+                var s = SettingsManager.LoadSettings();
+                if (s == null)
                 {
                     CreateNewProfile("Default Profile");
                     return;
                 }
-
-                var b64 = File.ReadAllText(SettingsPath);
-                var json = DecryptString(b64);
-                if (string.IsNullOrWhiteSpace(json)) return;
-
-                var s = JsonSerializer.Deserialize<AppSettings>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-                if (s == null) return;
 
                 if (s.Profiles == null || s.Profiles.Count == 0)
                 {
@@ -364,8 +310,9 @@ namespace EcomValidator
                     Profiles = _profiles.ToList(),
                     SelectedProfileId = (ProfileCombo.SelectedItem as CredentialProfile)?.Id
                 };
-                var json = JsonSerializer.Serialize(s);
-                File.WriteAllText(SettingsPath, EncryptString(json));
+
+                SettingsManager.SaveSettings(s);
+
                 if (showLog) Log("Settings saved to disk.");
             }
             catch (Exception ex) { Log("Save error: " + ex.Message); }
@@ -374,7 +321,9 @@ namespace EcomValidator
         private void ClearCredentialsBtn_Click(object sender, RoutedEventArgs e)
         {
             if (MessageBox.Show("Delete secure settings file and all profiles?", "Confirm", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
-            if (File.Exists(SettingsPath)) File.Delete(SettingsPath);
+
+            SettingsManager.DeleteSettings();
+
             _profiles.Clear();
             ClearInputs();
             CreateNewProfile("Default Profile");
