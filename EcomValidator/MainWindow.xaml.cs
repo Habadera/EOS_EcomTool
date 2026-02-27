@@ -26,7 +26,7 @@ namespace EcomValidator
 {
     public partial class MainWindow : Window
     {
-        private const string ToolVersion = "2.1";
+        private const string ToolVersion = "2.2";
 
         private readonly EosInitialize _eos;
 
@@ -260,12 +260,11 @@ namespace EcomValidator
 
                 ResetEosSession();
 
-                // === FIX: Clear Data Grids & Inputs on Profile Switch ===
                 _orderHeaderRows.Clear();
                 _userRows.Clear();
 
-                OrderIdBox.Text = "";       // Clear Order IDs
-                UserIdentityIdBox.Text = ""; // Clear Identity ID
+                OrderIdBox.Text = "";
+                UserIdentityIdBox.Text = "";
 
                 _lastOrderJson = "";
                 _lastUserJson = "";
@@ -279,9 +278,8 @@ namespace EcomValidator
             _isInitialized = false;
             _serverAccessToken = null;
             InitBtn.IsEnabled = true;
-            GetServerTokenBtn.IsEnabled = false;
             InitBtn.ClearValue(Button.BackgroundProperty);
-            GetServerTokenBtn.ClearValue(Button.BackgroundProperty);
+            InitBtn.Content = "Init & Connect";
         }
 
         private void ClearInputs()
@@ -418,48 +416,54 @@ namespace EcomValidator
         }
 
         // ================= EOS Logic =================
-        private void InitBtn_Click(object sender, RoutedEventArgs e)
+
+        private async void InitBtn_Click(object sender, RoutedEventArgs e)
         {
             try
             {
-                _eos.InitializePlatform(ProductIdBox.Text, SandboxIdBox.Text, DeploymentIdBox.Text, ClientIdBox.Text, ClientSecretBox.Password,
-                    false, 0, Path.Combine(Environment.CurrentDirectory, "Cache"), "12345678901234567890123456789012");
+                InitBtn.IsEnabled = false;
+                InitBtn.Content = "Connecting...";
 
-                _isInitialized = true;
-                GetServerTokenBtn.IsEnabled = true;
-                InitBtn.Background = (Brush)FindResource("Brush.Success");
+                // Step 1: Initialize EOS
+                try
+                {
+                    _eos.InitializePlatform(ProductIdBox.Text, SandboxIdBox.Text, DeploymentIdBox.Text, ClientIdBox.Text, ClientSecretBox.Password,
+                        false, 0, Path.Combine(Environment.CurrentDirectory, "Cache"), "12345678901234567890123456789012");
 
+                    _isInitialized = true;
+                    Log("EOS Initialized.");
+                }
+                catch (Exception ex)
+                {
+                    if (ex.Message.Contains("AlreadyConfigured") || ex.Message.Contains("EOS_AlreadyConfigured"))
+                    {
+                        _isInitialized = true;
+                        Log("Platform already active. Proceeding with new credentials.");
+                    }
+                    else
+                    {
+                        throw new Exception($"Init Failed: {ex.Message}");
+                    }
+                }
+
+                // Save profile if valid so they don't lose their credentials
                 if (ProfileCombo.SelectedItem != null) SaveCurrentProfile();
-                Log("EOS Initialized.");
+
+                // Step 2: Get Token
+                Log("Requesting Server Token...");
+                _serverAccessToken = await _eos.GetServerAccessTokenAsync(ClientIdBox.Text, ClientSecretBox.Password, DeploymentIdBox.Text);
+
+                Log("Token acquired successfully.");
+                InitBtn.Background = (Brush)FindResource("Brush.Success");
+                InitBtn.Content = "Connected";
+                InitBtn.IsEnabled = true;
             }
             catch (Exception ex)
             {
-                if (ex.Message.Contains("AlreadyConfigured") || ex.Message.Contains("EOS_AlreadyConfigured"))
-                {
-                    _isInitialized = true;
-                    GetServerTokenBtn.IsEnabled = true;
-                    InitBtn.Background = (Brush)FindResource("Brush.Success");
-                    Log("Platform already active. Ready to get token for new credentials.");
-
-                    if (ProfileCombo.SelectedItem != null) SaveCurrentProfile();
-                }
-                else
-                {
-                    Log("Init Failed: " + ex.Message);
-                }
+                Log("Connection Failed: " + ex.Message);
+                InitBtn.IsEnabled = true;
+                InitBtn.Content = "Init & Connect";
             }
-        }
-
-        private async void GetServerTokenBtn_Click(object sender, RoutedEventArgs e)
-        {
-            if (!_isInitialized) { Log("Init first."); return; }
-            try
-            {
-                _serverAccessToken = await _eos.GetServerAccessTokenAsync(ClientIdBox.Text, ClientSecretBox.Password, DeploymentIdBox.Text);
-                Log("Token acquired.");
-                GetServerTokenBtn.Background = (Brush)FindResource("Brush.Success");
-            }
-            catch (Exception ex) { Log("Token Failed: " + ex.Message); }
         }
 
         // ================= Order Fetch =================
@@ -488,18 +492,22 @@ namespace EcomValidator
             try
             {
                 Log($"Fetching {ids.Count} order(s)...");
-                var orders = await FetchOrderInfoAsync(GetSelectedOrderBaseUrl(), ids, _serverAccessToken);
-                if (orders.Count == 0) Log("No orders returned.");
-                foreach (var o in orders) _orderHeaderRows.Add(o);
-                _lastOrderJson = JsonSerializer.Serialize(orders, new JsonSerializerOptions { WriteIndented = true });
-                Log($"Fetched {orders.Count} orders.");
+                var result = await FetchOrderInfoAsync(GetSelectedOrderBaseUrl(), ids, _serverAccessToken);
+
+                if (result.Data.Count == 0) Log("No orders returned.");
+                foreach (var o in result.Data) _orderHeaderRows.Add(o);
+
+                _lastOrderJson = result.RawJson;
+
+                Log($"Fetched {result.Data.Count} orders.");
             }
             catch (Exception ex) { Log("Fetch Error: " + ex.Message); }
         }
 
         private void CopyOrderJsonBtn_Click(object sender, RoutedEventArgs e) => Clipboard.SetText(_lastOrderJson);
 
-        private async Task<List<OrderInfoResponse>> FetchOrderInfoAsync(string baseUrl, List<string> ids, string token)
+        // Updated to return a Tuple containing the Data and the Raw un-modified JSON
+        private async Task<(List<OrderInfoResponse> Data, string RawJson)> FetchOrderInfoAsync(string baseUrl, List<string> ids, string token)
         {
             using var http = new HttpClient();
             http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
@@ -510,6 +518,9 @@ namespace EcomValidator
             var resp = await http.GetAsync(url);
             var body = await resp.Content.ReadAsStringAsync();
             if (!resp.IsSuccessStatusCode) throw new Exception($"{resp.StatusCode} {body}");
+
+            // Format raw JSON so it looks pretty when copied
+            var prettyRawJson = JsonSerializer.Serialize(JsonDocument.Parse(body), new JsonSerializerOptions { WriteIndented = true });
 
             var opts = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
             using var doc = JsonDocument.Parse(body);
@@ -538,7 +549,7 @@ namespace EcomValidator
                     }
                 }
             }
-            return list ?? new List<OrderInfoResponse>();
+            return (list ?? new List<OrderInfoResponse>(), prettyRawJson);
         }
 
         // ================= USER INFO TAB LOGIC =================
@@ -555,14 +566,15 @@ namespace EcomValidator
                 var identityId = UserIdentityIdBox.Text.Trim();
                 var sandboxId = SandboxIdBox.Text.Trim();
 
-                // 1. Fetch raw entitlements
-                var rawEntitlements = await FetchEntitlementsAsync(identityId, _serverAccessToken!, sandboxId);
+                // Fetch data and raw JSON
+                var result = await FetchEntitlementsAsync(identityId, _serverAccessToken!, sandboxId);
+                var rawEntitlements = result.Data;
 
-                // 2. Try to resolve offer names from API (best effort)
+                _lastUserJson = result.RawJson;
+
                 try { await BuildOfferNameMapFromWebApiAsync(identityId, _serverAccessToken!, sandboxId); }
                 catch (Exception ex) { Log($"⚠️ Name resolution warning: {ex.Message}"); }
 
-                // 3. Map to unified view model
                 var unifiedList = rawEntitlements.Select(d =>
                 {
                     var isRedeemed = (d.Consumable == true && (d.UseCount ?? 0) > 0);
@@ -579,7 +591,6 @@ namespace EcomValidator
 
                 foreach (var r in unifiedList.OrderByDescending(x => x.GrantDate)) _userRows.Add(r);
 
-                _lastUserJson = JsonSerializer.Serialize(rawEntitlements, new JsonSerializerOptions { WriteIndented = true });
                 Log($"✅ Fetched {rawEntitlements.Count} user entitlements.");
             }
             catch (Exception ex) { Log("💥 Error: " + ex.Message); }
@@ -616,7 +627,7 @@ namespace EcomValidator
             return "";
         }
 
-        private async Task<List<WebEntitlement>> FetchEntitlementsAsync(string identityId, string bearerToken, string sandboxId)
+        private async Task<(List<WebEntitlement> Data, string RawJson)> FetchEntitlementsAsync(string identityId, string bearerToken, string sandboxId)
         {
             using var http = new HttpClient();
             http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
@@ -627,7 +638,10 @@ namespace EcomValidator
             if (!resp.IsSuccessStatusCode)
                 throw new InvalidOperationException($"Web API failed: {resp.StatusCode} {body}");
 
-            return JsonSerializer.Deserialize<List<WebEntitlement>>(body, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new List<WebEntitlement>();
+            var prettyRawJson = JsonSerializer.Serialize(JsonDocument.Parse(body), new JsonSerializerOptions { WriteIndented = true });
+            var list = JsonSerializer.Deserialize<List<WebEntitlement>>(body, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new List<WebEntitlement>();
+
+            return (list, prettyRawJson);
         }
 
         private async Task BuildOfferNameMapFromWebApiAsync(string identityId, string bearerToken, string sandboxId)
@@ -745,9 +759,18 @@ namespace EcomValidator
             public string? NamespaceDisplayName { get; set; }
             public string? SellerId { get; set; }
             public string? SellerName { get; set; }
+            public List<OfferItem>? OfferItems { get; set; } // Added missing array map
         }
 
-        // New Unified Model
+        public sealed class OfferItem
+        {
+            public string? ItemId { get; set; }
+            public string? EntitlementId { get; set; }
+            public string? EntitlementStatus { get; set; }
+            public bool? EntitlementRedeemed { get; set; }
+            public DateTime? EntitlementRedeemedAt { get; set; }
+        }
+
         public sealed class UserEntitlementRow
         {
             public string? OfferName { get; set; }
