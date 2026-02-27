@@ -21,12 +21,13 @@ using System.Windows.Interop;
 using Microsoft.Win32;
 
 using EcomValidator.Services;
+using EcomValidator.Models; // <-- Added to reference your new Models folder
 
 namespace EcomValidator
 {
     public partial class MainWindow : Window
     {
-        private const string ToolVersion = "2.2";
+        private const string ToolVersion = "2.3"; // Refactored Models
 
         private readonly EosInitialize _eos;
 
@@ -41,52 +42,6 @@ namespace EcomValidator
         private bool _isInitialized = false;
 
         private const string OrderBaseUrl_Prod = "https://api.epicgames.dev";
-
-        private string GetSelectedOrderBaseUrl()
-        {
-            var selected = (OrderEnvCombo?.SelectedItem as ComboBoxItem)?.Content?.ToString();
-            return selected switch
-            {
-                "Prod" => OrderBaseUrl_Prod,
-                "Custom" => (OrderCustomBaseUrlBox.Text ?? "").Trim().TrimEnd('/'),
-                _ => OrderBaseUrl_Prod
-            };
-        }
-
-        // ===== Data Models =====
-        public class CredentialProfile : INotifyPropertyChanged
-        {
-            private string _name = "Default Profile";
-            public Guid Id { get; set; } = Guid.NewGuid();
-
-            public string Name
-            {
-                get => _name;
-                set { _name = value; OnPropertyChanged(nameof(Name)); }
-            }
-
-            public string? ProductId { get; set; }
-            public string? SandboxId { get; set; }
-            public string? DeploymentId { get; set; }
-            public string? ClientId { get; set; }
-            public string? ClientSecret { get; set; }
-
-            public event PropertyChangedEventHandler? PropertyChanged;
-            protected void OnPropertyChanged(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
-        }
-
-        private sealed class AppSettings
-        {
-            public string? ProductId { get; set; }
-            public string? SandboxId { get; set; }
-            public string? DeploymentId { get; set; }
-            public string? ClientId { get; set; }
-            public string? ClientSecret { get; set; }
-            public bool Remember { get; set; }
-
-            public List<CredentialProfile> Profiles { get; set; } = new();
-            public Guid? SelectedProfileId { get; set; }
-        }
 
         private static string SettingsPath => Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "settings.secure");
         private const string EncryptionKey = "EcomValidator_Portable_Key_2026!";
@@ -118,6 +73,17 @@ namespace EcomValidator
             this.Closed += (s, e) =>
             {
                 SaveSettingsEncryptedFromUI(false);
+            };
+        }
+
+        private string GetSelectedOrderBaseUrl()
+        {
+            var selected = (OrderEnvCombo?.SelectedItem as ComboBoxItem)?.Content?.ToString();
+            return selected switch
+            {
+                "Prod" => OrderBaseUrl_Prod,
+                "Custom" => (OrderCustomBaseUrlBox.Text ?? "").Trim().TrimEnd('/'),
+                _ => OrderBaseUrl_Prod
             };
         }
 
@@ -416,7 +382,6 @@ namespace EcomValidator
         }
 
         // ================= EOS Logic =================
-
         private async void InitBtn_Click(object sender, RoutedEventArgs e)
         {
             try
@@ -506,7 +471,6 @@ namespace EcomValidator
 
         private void CopyOrderJsonBtn_Click(object sender, RoutedEventArgs e) => Clipboard.SetText(_lastOrderJson);
 
-        // Updated to return a Tuple containing the Data and the Raw un-modified JSON
         private async Task<(List<OrderInfoResponse> Data, string RawJson)> FetchOrderInfoAsync(string baseUrl, List<string> ids, string token)
         {
             using var http = new HttpClient();
@@ -519,7 +483,6 @@ namespace EcomValidator
             var body = await resp.Content.ReadAsStringAsync();
             if (!resp.IsSuccessStatusCode) throw new Exception($"{resp.StatusCode} {body}");
 
-            // Format raw JSON so it looks pretty when copied
             var prettyRawJson = JsonSerializer.Serialize(JsonDocument.Parse(body), new JsonSerializerOptions { WriteIndented = true });
 
             var opts = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
@@ -566,7 +529,6 @@ namespace EcomValidator
                 var identityId = UserIdentityIdBox.Text.Trim();
                 var sandboxId = SandboxIdBox.Text.Trim();
 
-                // Fetch data and raw JSON
                 var result = await FetchEntitlementsAsync(identityId, _serverAccessToken!, sandboxId);
                 var rawEntitlements = result.Data;
 
@@ -726,69 +688,6 @@ namespace EcomValidator
 
                 Content = stack;
             }
-        }
-
-        // ================= Models =================
-        public sealed class OrderInfoResponse
-        {
-            public string? OrderId { get; set; }
-            public string? InvoiceId { get; set; }
-            public string? ParentOrderId { get; set; }
-            public string? OrderType { get; set; }
-            public string? OrderStatus { get; set; }
-            public string? Currency { get; set; }
-            public string? Symbol { get; set; }
-            public int? TotalPrice { get; set; }
-            public int? TotalDiscounted { get; set; }
-            public int? TotalTax { get; set; }
-            public DateTime? CreationDate { get; set; }
-            public DateTime? LastModifiedDate { get; set; }
-            public DateTime? CompletedAt { get; set; }
-            public List<OrderLineOffer>? LineOffers { get; set; }
-        }
-
-        public sealed class OrderLineOffer
-        {
-            public string? OfferId { get; set; }
-            public string? Title { get; set; }
-            public int? Quantity { get; set; }
-            public int? TotalPrice { get; set; }
-            public int? UnitPrice { get; set; }
-            public int? DiscountedPrice { get; set; }
-            public string? Namespace { get; set; }
-            public string? NamespaceDisplayName { get; set; }
-            public string? SellerId { get; set; }
-            public string? SellerName { get; set; }
-            public List<OfferItem>? OfferItems { get; set; } // Added missing array map
-        }
-
-        public sealed class OfferItem
-        {
-            public string? ItemId { get; set; }
-            public string? EntitlementId { get; set; }
-            public string? EntitlementStatus { get; set; }
-            public bool? EntitlementRedeemed { get; set; }
-            public DateTime? EntitlementRedeemedAt { get; set; }
-        }
-
-        public sealed class UserEntitlementRow
-        {
-            public string? OfferName { get; set; }
-            public string? Status { get; set; }
-            public string? IsRedeemed { get; set; }
-            public DateTime? GrantDate { get; set; }
-            public string? EntitlementId { get; set; }
-            public string? CatalogItemId { get; set; }
-        }
-
-        public sealed class WebEntitlement
-        {
-            public string? Id { get; set; }
-            public string? CatalogItemId { get; set; }
-            public DateTime? GrantDate { get; set; }
-            public bool? Consumable { get; set; }
-            public string? Status { get; set; }
-            public int? UseCount { get; set; }
         }
     }
 }
