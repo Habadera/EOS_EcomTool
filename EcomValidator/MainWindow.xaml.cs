@@ -1,27 +1,14 @@
 ﻿#nullable enable
-using System;
-using System.Collections.Generic;
+using EcomValidator.Models;
+using EcomValidator.Services;
 using System.Collections.ObjectModel;
-using System.ComponentModel;
 using System.IO;
-using System.Linq;
-using System.Net.Http;
-using System.Net.Http.Headers;
 using System.Runtime.InteropServices;
-using System.Security.Cryptography;
-using System.Text;
-using System.Text.Json;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Controls.Primitives;
 using System.Windows.Data;
-using System.Windows.Media;
 using System.Windows.Interop;
-using Microsoft.Win32;
-
-using EcomValidator.Services;
-using EcomValidator.Models; // <-- Added to reference your new Models folder
+using System.Windows.Media;
 
 namespace EcomValidator
 {
