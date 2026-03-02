@@ -27,24 +27,14 @@ namespace EcomValidator
 {
     public partial class MainWindow : Window
     {
-        private const string ToolVersion = "2.3"; // Refactored Models
+        private const string ToolVersion = "1.2";
 
         private readonly EosInitialize _eos;
 
-        private readonly ObservableCollection<OrderInfoResponse> _orderHeaderRows = new();
-        private readonly ObservableCollection<UserEntitlementRow> _userRows = new();
-
         private readonly ObservableCollection<CredentialProfile> _profiles = new();
 
-        private string _lastOrderJson = "";
-        private string _lastUserJson = "";
         private string? _serverAccessToken;
         private bool _isInitialized = false;
-
-        private const string OrderBaseUrl_Prod = "https://api.epicgames.dev";
-
-        private readonly Dictionary<string, string> _offerNameMap = new(StringComparer.OrdinalIgnoreCase);
-        private readonly Dictionary<string, string> _offerNameMapFromApi = new(StringComparer.OrdinalIgnoreCase);
 
         [DllImport("dwmapi.dll")]
         private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int attrValue, int attrSize);
@@ -53,10 +43,12 @@ namespace EcomValidator
         {
             InitializeComponent();
 
-            OrderEnvCombo.SelectedIndex = 0;
+            OrderInfoTab.GetToken = () => _serverAccessToken;
+            OrderInfoTab.LogMsg = Log;
 
-            UserInfoGrid.ItemsSource = _userRows;
-            OrderHeaderGrid.ItemsSource = _orderHeaderRows;
+            UserInfoTab.GetToken = () => _serverAccessToken;
+            UserInfoTab.GetSandboxId = () => SandboxIdBox.Text.Trim();
+            UserInfoTab.LogMsg = Log;
 
             ProfileCombo.ItemsSource = _profiles;
 
@@ -70,17 +62,6 @@ namespace EcomValidator
             this.Closed += (s, e) =>
             {
                 SaveSettingsEncryptedFromUI(false);
-            };
-        }
-
-        private string GetSelectedOrderBaseUrl()
-        {
-            var selected = (OrderEnvCombo?.SelectedItem as ComboBoxItem)?.Content?.ToString();
-            return selected switch
-            {
-                "Prod" => OrderBaseUrl_Prod,
-                "Custom" => (OrderCustomBaseUrlBox.Text ?? "").Trim().TrimEnd('/'),
-                _ => OrderBaseUrl_Prod
             };
         }
 
@@ -223,14 +204,8 @@ namespace EcomValidator
 
                 ResetEosSession();
 
-                _orderHeaderRows.Clear();
-                _userRows.Clear();
-
-                OrderIdBox.Text = "";
-                UserIdentityIdBox.Text = "";
-
-                _lastOrderJson = "";
-                _lastUserJson = "";
+                OrderInfoTab.ClearData();
+                UserInfoTab.ClearData();
 
                 Log($"Switched to profile: {profile.Name}");
             }
@@ -380,228 +355,6 @@ namespace EcomValidator
             }
         }
 
-        // ================= Order Fetch =================
-        private void OrderEnvCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            var isCustom = (OrderEnvCombo.SelectedItem as ComboBoxItem)?.Content?.ToString() == "Custom";
-            if (OrderCustomBaseUrlBox != null) OrderCustomBaseUrlBox.Visibility = isCustom ? Visibility.Visible : Visibility.Collapsed;
-        }
-
-        private void RowExpander_Click(object sender, RoutedEventArgs e)
-        {
-            if (sender is ToggleButton toggle && DataGridRow.GetRowContainingElement(toggle) is DataGridRow row)
-                row.DetailsVisibility = row.DetailsVisibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible;
-        }
-
-        private async void OrderFetchBtn_Click(object sender, RoutedEventArgs e)
-        {
-            _orderHeaderRows.Clear();
-            var rawInput = OrderIdBox.Text ?? "";
-            var ids = rawInput.Split(new[] { '\r', '\n', ',', ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries)
-                              .Select(x => x.Trim()).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct().ToList();
-            if (ids.Count == 0) { Log("Enter Order ID(s)."); return; }
-            if (ids.Count > 100) ids = ids.Take(100).ToList();
-            if (string.IsNullOrWhiteSpace(_serverAccessToken)) { Log("Get Token first."); return; }
-
-            try
-            {
-                Log($"Fetching {ids.Count} order(s)...");
-                var result = await FetchOrderInfoAsync(GetSelectedOrderBaseUrl(), ids, _serverAccessToken);
-
-                if (result.Data.Count == 0) Log("No orders returned.");
-                foreach (var o in result.Data) _orderHeaderRows.Add(o);
-
-                _lastOrderJson = result.RawJson;
-
-                Log($"Fetched {result.Data.Count} orders.");
-            }
-            catch (Exception ex) { Log("Fetch Error: " + ex.Message); }
-        }
-
-        private void CopyOrderJsonBtn_Click(object sender, RoutedEventArgs e) => Clipboard.SetText(_lastOrderJson);
-
-        private async Task<(List<OrderInfoResponse> Data, string RawJson)> FetchOrderInfoAsync(string baseUrl, List<string> ids, string token)
-        {
-            using var http = new HttpClient();
-            http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-            var query = string.Join("&", ids.Select(id => $"id={Uri.EscapeDataString(id)}"));
-            var url = $"{baseUrl.TrimEnd('/')}/epic/ecom/v3/orders?{query}";
-            Log($"GET {url}");
-
-            var resp = await http.GetAsync(url);
-            var body = await resp.Content.ReadAsStringAsync();
-            if (!resp.IsSuccessStatusCode) throw new Exception($"{resp.StatusCode} {body}");
-
-            var prettyRawJson = JsonSerializer.Serialize(JsonDocument.Parse(body), new JsonSerializerOptions { WriteIndented = true });
-
-            var opts = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-            using var doc = JsonDocument.Parse(body);
-            var root = doc.RootElement;
-            List<OrderInfoResponse>? list = null;
-
-            if (root.ValueKind == JsonValueKind.Array)
-                list = JsonSerializer.Deserialize<List<OrderInfoResponse>>(body, opts);
-            else if (root.ValueKind == JsonValueKind.Object)
-            {
-                if (root.TryGetProperty("data", out var d) && d.ValueKind == JsonValueKind.Array)
-                    list = JsonSerializer.Deserialize<List<OrderInfoResponse>>(d.GetRawText(), opts);
-                else
-                {
-                    try
-                    {
-                        var dict = JsonSerializer.Deserialize<Dictionary<string, OrderInfoResponse>>(body, opts);
-                        if (dict?.Any() == true) list = dict.Values.Where(x => !string.IsNullOrEmpty(x.OrderId)).ToList();
-                    }
-                    catch { }
-
-                    if (list == null)
-                    {
-                        var single = JsonSerializer.Deserialize<OrderInfoResponse>(body, opts);
-                        if (single?.OrderId != null) list = new List<OrderInfoResponse> { single };
-                    }
-                }
-            }
-            return (list ?? new List<OrderInfoResponse>(), prettyRawJson);
-        }
-
-        // ================= USER INFO TAB LOGIC =================
-        private async void UserFetchBtn_Click(object sender, RoutedEventArgs e)
-        {
-            _userRows.Clear();
-            _offerNameMapFromApi.Clear();
-
-            if (string.IsNullOrWhiteSpace(_serverAccessToken)) { Log("Get Access Token first."); return; }
-            if (string.IsNullOrWhiteSpace(UserIdentityIdBox.Text)) { Log("Enter Identity ID."); return; }
-
-            try
-            {
-                var identityId = UserIdentityIdBox.Text.Trim();
-                var sandboxId = SandboxIdBox.Text.Trim();
-
-                var result = await FetchEntitlementsAsync(identityId, _serverAccessToken!, sandboxId);
-                var rawEntitlements = result.Data;
-
-                _lastUserJson = result.RawJson;
-
-                try { await BuildOfferNameMapFromWebApiAsync(identityId, _serverAccessToken!, sandboxId); }
-                catch (Exception ex) { Log($"⚠️ Name resolution warning: {ex.Message}"); }
-
-                var unifiedList = rawEntitlements.Select(d =>
-                {
-                    var isRedeemed = (d.Consumable == true && (d.UseCount ?? 0) > 0);
-                    return new UserEntitlementRow
-                    {
-                        EntitlementId = d.Id ?? "",
-                        CatalogItemId = d.CatalogItemId ?? "",
-                        OfferName = ResolveOfferName(d.CatalogItemId),
-                        Status = d.Status ?? "",
-                        IsRedeemed = isRedeemed ? "Yes" : "No",
-                        GrantDate = d.GrantDate
-                    };
-                });
-
-                foreach (var r in unifiedList.OrderByDescending(x => x.GrantDate)) _userRows.Add(r);
-
-                Log($"✅ Fetched {rawEntitlements.Count} user entitlements.");
-            }
-            catch (Exception ex) { Log("💥 Error: " + ex.Message); }
-        }
-
-        private void CopyUserJsonBtn_Click(object sender, RoutedEventArgs e) => Clipboard.SetText(_lastUserJson);
-
-        private void LoadOfferMapBtn_Click(object sender, RoutedEventArgs e)
-        {
-            try
-            {
-                var dlg = new OpenFileDialog { Filter = "CSV (*.csv)|*.csv" };
-                if (dlg.ShowDialog() == true)
-                {
-                    var lines = File.ReadAllLines(dlg.FileName);
-                    foreach (var line in lines)
-                    {
-                        var parts = line.Split(',');
-                        if (parts.Length >= 2) _offerNameMap[parts[0].Trim()] = parts[1].Trim();
-                    }
-                    Log("Offer map loaded.");
-                }
-            }
-            catch (Exception ex) { Log("Error loading map: " + ex.Message); }
-        }
-
-        // ================= Shared API Helpers =================
-
-        private string ResolveOfferName(string? catalogItemId)
-        {
-            if (string.IsNullOrWhiteSpace(catalogItemId)) return "";
-            if (_offerNameMapFromApi.TryGetValue(catalogItemId, out var n1)) return n1;
-            if (_offerNameMap.TryGetValue(catalogItemId, out var n2)) return n2;
-            return "";
-        }
-
-        private async Task<(List<WebEntitlement> Data, string RawJson)> FetchEntitlementsAsync(string identityId, string bearerToken, string sandboxId)
-        {
-            using var http = new HttpClient();
-            http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
-            var url = $"https://api.epicgames.dev/epic/ecom/v4/identities/{identityId}/entitlements?sandboxId={sandboxId}";
-            var resp = await http.GetAsync(url);
-            var body = await resp.Content.ReadAsStringAsync();
-
-            if (!resp.IsSuccessStatusCode)
-                throw new InvalidOperationException($"Web API failed: {resp.StatusCode} {body}");
-
-            var prettyRawJson = JsonSerializer.Serialize(JsonDocument.Parse(body), new JsonSerializerOptions { WriteIndented = true });
-            var list = JsonSerializer.Deserialize<List<WebEntitlement>>(body, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new List<WebEntitlement>();
-
-            return (list, prettyRawJson);
-        }
-
-        private async Task BuildOfferNameMapFromWebApiAsync(string identityId, string bearerToken, string sandboxId)
-        {
-            using var http = new HttpClient();
-            http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
-
-            var url = $"https://api.epicgames.dev/epic/ecom/v3/identities/{identityId}/namespaces/{sandboxId}/offers";
-            var resp = await http.GetAsync(url);
-            var body = await resp.Content.ReadAsStringAsync();
-            if (!resp.IsSuccessStatusCode) return;
-
-            using var doc = JsonDocument.Parse(body);
-            var root = doc.RootElement;
-
-            void MapFromOffersArray(JsonElement arr)
-            {
-                foreach (var offerEl in arr.EnumerateArray())
-                {
-                    string title = "";
-                    if (offerEl.TryGetProperty("title", out var t1)) title = t1.GetString() ?? "";
-                    else if (offerEl.TryGetProperty("name", out var t2)) title = t2.GetString() ?? "";
-                    if (string.IsNullOrWhiteSpace(title)) continue;
-
-                    if (offerEl.TryGetProperty("items", out var itemsEl) && itemsEl.ValueKind == JsonValueKind.Array)
-                    {
-                        foreach (var itemEl in itemsEl.EnumerateArray())
-                        {
-                            string? catId = null;
-                            if (itemEl.ValueKind == JsonValueKind.Object)
-                            {
-                                if (itemEl.TryGetProperty("id", out var idEl)) catId = idEl.GetString();
-                                else if (itemEl.TryGetProperty("catalogItemId", out var cidEl)) catId = cidEl.GetString();
-                            }
-                            else if (itemEl.ValueKind == JsonValueKind.String) catId = itemEl.GetString();
-
-                            if (!string.IsNullOrWhiteSpace(catId)) _offerNameMapFromApi[catId!] = title;
-                        }
-                    }
-                }
-            }
-
-            if (root.ValueKind == JsonValueKind.Array) MapFromOffersArray(root);
-            else if (root.ValueKind == JsonValueKind.Object)
-            {
-                if (root.TryGetProperty("elements", out var el) && el.ValueKind == JsonValueKind.Array) MapFromOffersArray(el);
-                else if (root.TryGetProperty("data", out var d) && d.ValueKind == JsonValueKind.Array) MapFromOffersArray(d);
-            }
-        }
 
         // ================= Internal Simple Input Dialog =================
         public class SimpleInputDialog : Window
